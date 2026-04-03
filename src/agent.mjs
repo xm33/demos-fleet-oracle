@@ -224,6 +224,21 @@ function determineSeverity(offlineCount, chainIssues, lagCount) {
   return "info";
 }
 
+function getRecommendation(data) {
+  if (!data || !data.nodeReports) return { recommendation: "INSUFFICIENT_DATA", safe_to_propose: false, confidence: "low", reason: "No fleet data available" };
+  var healthy = data.nodeReports.filter(function(n) { return n.status === "HEALTHY"; }).length;
+  var total = data.nodeReports.length;
+  var offline = data.nodeReports.filter(function(n) { return n.issues && n.issues.some(function(i) { return i === "OFFLINE"; }); }).length;
+  var chainOk = !data.problems || data.problems.filter(function(p) { return p.name === "CHAIN"; }).length === 0;
+  if (healthy === total && chainOk) {
+    return { recommendation: "SAFE", safe_to_propose: true, confidence: "high", reason: healthy + "/" + total + " nodes synced, no issues detected" };
+  }
+  if (healthy >= Math.ceil(total * 0.7) && offline < 3) {
+    return { recommendation: "CAUTION", safe_to_propose: true, confidence: "medium", reason: healthy + "/" + total + " healthy, minor issues present" };
+  }
+  return { recommendation: "UNSAFE", safe_to_propose: false, confidence: "high", reason: healthy + "/" + total + " healthy, significant issues detected" };
+}
+
 // Load incident counter from DB on startup
 function loadIncidentCounter() {
   try {
@@ -1099,6 +1114,7 @@ function generatePrometheusMetrics(fleetData) {
           nodes: latestHealthData.nodeReports || [],
           nodeVersions: nodeVersions,
         } : null,
+        recommendation: getRecommendation(latestHealthData),
         publicRpcs: publicRpcStats,
         reputationScores: history.length > 0 ? calculateReputationScores() : null,
         discoveredPeers: Object.keys(discoveredPeers).length,
