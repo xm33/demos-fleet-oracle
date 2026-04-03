@@ -159,6 +159,82 @@ let lastAlertAt = 0; // timestamp of last alert publish
 let activeRpcUrl = RPC_URL;
 let versionMismatchAlerted = false;
 
+// --- v6.4: Incident tracking ---
+let activeIncidents = {};   // { "n4,n6": { id: "INC-001", ... } }
+let incidentCounter = 0;    // auto-increment
+
+function getNextIncidentId() {
+  incidentCounter++;
+  return "INC-" + String(incidentCounter).padStart(3, "0");
+}
+
+function openIncident(severity, affectedNodes, description, block) {
+  var id = getNextIncidentId();
+  var now = new Date().toISOString();
+  var inc = {
+    id: id,
+    status: "active",
+    severity: severity,
+    startedAt: now,
+    resolvedAt: null,
+    durationSeconds: null,
+    affectedNodes: affectedNodes,
+    description: description,
+    detectedBlock: block,
+    resolvedBlock: null,
+    alerts: [{ at: now, type: "OPENED", text: description }]
+  };
+  var key = affectedNodes.sort().join(",");
+  activeIncidents[key] = inc;
+  // Persist to SQLite
+  try {
+    sharedDb.prepare("INSERT INTO incidents (id, status, severity, started_at, affected_nodes, description, detected_block, alerts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(id, "active", severity, now, JSON.stringify(affectedNodes), description, block || 0, JSON.stringify(inc.alerts));
+  } catch(e) { log("  [incidents] DB insert error: " + e.message); }
+  log("  [incidents] Opened " + id + " (" + severity + "): " + description);
+  return inc;
+}
+
+function resolveIncident(key, block) {
+  var inc = activeIncidents[key];
+  if (!inc) return;
+  var now = new Date().toISOString();
+  var duration = Math.round((new Date(now).getTime() - new Date(inc.startedAt).getTime()) / 1000);
+  inc.status = "resolved";
+  inc.resolvedAt = now;
+  inc.durationSeconds = duration;
+  inc.resolvedBlock = block;
+  inc.alerts.push({ at: now, type: "RESOLVED", text: "Resolved after " + duration + "s" });
+  // Update SQLite
+  try {
+    sharedDb.prepare("UPDATE incidents SET status=?, resolved_at=?, duration_seconds=?, resolved_block=?, alerts=? WHERE id=?")
+      .run("resolved", now, duration, block || 0, JSON.stringify(inc.alerts), inc.id);
+  } catch(e) { log("  [incidents] DB update error: " + e.message); }
+  log("  [incidents] Resolved " + inc.id + " after " + duration + "s");
+  delete activeIncidents[key];
+}
+
+function getActiveIncidentIds() {
+  return Object.values(activeIncidents).map(function(i) { return i.id; });
+}
+
+function determineSeverity(offlineCount, chainIssues, lagCount) {
+  if (offlineCount >= 3 || chainIssues > 0) return "critical";
+  if (offlineCount >= 1 || lagCount >= 3) return "warning";
+  return "info";
+}
+
+// Load incident counter from DB on startup
+function loadIncidentCounter() {
+  try {
+    var row = sharedDb.prepare("SELECT id FROM incidents ORDER BY rowid DESC LIMIT 1").get();
+    if (row && row.id) {
+      var num = parseInt(row.id.replace("INC-", ""), 10);
+      if (!isNaN(num)) incidentCounter = num;
+    }
+  } catch(e) {}
+}
+
 // --- Uptime & daily summary tracking ---
 let cycleCount = 0;
 let lastPublishAt = null;
@@ -1010,7 +1086,7 @@ function generatePrometheusMetrics(fleetData) {
       var payload = {
         agent: AGENT_NAME,
         wallet: AGENT_WALLET,
-        version: "6.3",
+        version: "6.4",
         timestamp: new Date().toISOString(),
         cycleCount: cycleCount,
         lastCycleAt: staleness.lastCycleAt, // FIX BUG 7
@@ -1027,6 +1103,7 @@ function generatePrometheusMetrics(fleetData) {
         reputationScores: history.length > 0 ? calculateReputationScores() : null,
         discoveredPeers: Object.keys(discoveredPeers).length,
         uptime: uptimeStats,
+        activeIncidents: getActiveIncidentIds(),
         dahrEnabled: dahrAvailable === true,
         writeBudget: canPublish(), // FIX BUG 6: expose budget status
       };
@@ -1047,6 +1124,34 @@ function generatePrometheusMetrics(fleetData) {
       var staleness = getStaleness(); // FIX BUG 7
       res.writeHead(200);
       res.end(JSON.stringify({ points: last24h.length, data: last24h, lastCycleAt: staleness.lastCycleAt, stalenessSeconds: staleness.stalenessSeconds }, null, 2));
+    } else if (req.url.indexOf("/incidents") === 0) {
+      var incParams = new URLSearchParams(req.url.split("?")[1] || "");
+      var incStatus = incParams.get("status") || null;
+      var incLimit = parseInt(incParams.get("limit") || "50", 10);
+      try {
+        var incQuery = "SELECT * FROM incidents";
+        var incArgs = [];
+        if (incStatus) { incQuery += " WHERE status = ?"; incArgs.push(incStatus); }
+        incQuery += " ORDER BY rowid DESC LIMIT ?";
+        incArgs.push(incLimit);
+        var incRows = sharedDb.prepare(incQuery).all(...incArgs);
+        var incResults = incRows.map(function(r) {
+          return {
+            id: r.id, status: r.status, severity: r.severity,
+            startedAt: r.started_at, resolvedAt: r.resolved_at,
+            durationSeconds: r.duration_seconds,
+            affectedNodes: JSON.parse(r.affected_nodes || "[]"),
+            description: r.description,
+            detectedBlock: r.detected_block, resolvedBlock: r.resolved_block,
+            alerts: JSON.parse(r.alerts || "[]")
+          };
+        });
+        res.writeHead(200);
+        res.end(JSON.stringify({ total: incResults.length, active: Object.keys(activeIncidents).length, incidents: incResults }, null, 2));
+      } catch(incErr) {
+        res.writeHead(200);
+        res.end(JSON.stringify({ total: 0, active: 0, incidents: [], error: incErr.message }, null, 2));
+      }
     } else if (req.url === "/federate" || req.url === "/metrics") {
       var fleetData = {
         nodes: latestHealthData ? latestHealthData.nodeReports || [] : [],
@@ -1060,7 +1165,7 @@ function generatePrometheusMetrics(fleetData) {
         dahrAttestations: dahrAvailable ? 2 : 0,
         activeAlerts: Object.keys(problemHistory).filter(function(k) { return problemHistory[k] && problemHistory[k].count >= 2; }).length,
         totalAlerts: dailyAlertCount || 0,
-        version: "6.3",
+        version: "6.4",
         wallet: AGENT_WALLET,
         cycleCount: cycleCount
       };
@@ -1091,7 +1196,7 @@ function generatePrometheusMetrics(fleetData) {
       res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
       res.end(JSON.stringify({
         agent: "Demos Fleet Oracle",
-        version: "6.3",
+        version: "6.4",
         uptimeSeconds: Math.round(process.uptime()),
         lastCycleAt: latestHealthData ? latestHealthData.timestamp : null,
         lastPublishAt: lastPublishAt,
@@ -1100,7 +1205,7 @@ function generatePrometheusMetrics(fleetData) {
         wallet: AGENT_WALLET,
         activeRpc: activeRpcUrl,
         demBalance: lastKnownBalance,
-        endpoints: ["/health", "/self", "/docs", "/reputation", "/peers", "/history", "/history/export", "/federate", "/badge", "/marketplace", "/consensus"]
+        endpoints: ["/health", "/self", "/docs", "/reputation", "/peers", "/history", "/history/export", "/federate", "/badge", "/marketplace", "/consensus", "/incidents"]
       }, null, 2));
     } else if (req.url === "/docs") {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Access-Control-Allow-Origin": "*" });
@@ -1265,7 +1370,24 @@ async function main() {
   sharedDb = new Database(dbPath);
   sharedDb.exec("PRAGMA journal_mode = WAL;");
   sharedDb.exec("PRAGMA busy_timeout = 5000;");
-  log("  Shared SQLite: " + dbPath);
+  sharedDb.exec(`CREATE TABLE IF NOT EXISTS incidents (
+    id TEXT PRIMARY KEY,
+    status TEXT NOT NULL DEFAULT 'active',
+    severity TEXT NOT NULL DEFAULT 'warning',
+    started_at TEXT NOT NULL,
+    resolved_at TEXT,
+    duration_seconds INTEGER,
+    affected_nodes TEXT NOT NULL,
+    description TEXT NOT NULL,
+    detected_block INTEGER,
+    resolved_block INTEGER,
+    alerts TEXT NOT NULL DEFAULT '[]'
+  )`);
+  log("  Shared SQLite: " + dbPath + " (incidents table ready)");
+
+  // v6.4: Load incident counter from DB
+  loadIncidentCounter();
+  log("  Incident counter: " + incidentCounter);
 
   // Start health API server
   startHealthServer();
@@ -1512,6 +1634,14 @@ async function main() {
 
         if (recoveries.length > 0) {
           dailyRecoveryCount++;
+          // v6.4: Resolve matching incidents
+          for (var rKey in activeIncidents) {
+            var rNodes = rKey.split(",");
+            var allRecovered = rNodes.every(function(rn) { return recoveries.indexOf(rn) !== -1 || rn === "CHAIN"; });
+            if (allRecovered) {
+              resolveIncident(rKey, data.chain ? data.chain.block : null);
+            }
+          }
           var recPost = {
             cat: "OBSERVATION",
             text: "Recovery: " + recoveries.join(", ") + " back to healthy. Fleet " + FLEET_SIZE + "/" + FLEET_SIZE + " operational.",
@@ -1575,6 +1705,14 @@ async function main() {
       // Post recovery if any previously-alerted items recovered
       if (recoveries.length > 0) {
         dailyRecoveryCount++;
+        // v6.4: Resolve matching incidents
+        for (var rKey2 in activeIncidents) {
+          var rNodes2 = rKey2.split(",");
+          var allRecovered2 = rNodes2.every(function(rn) { return recoveries.indexOf(rn) !== -1 || rn === "CHAIN"; });
+          if (allRecovered2) {
+            resolveIncident(rKey2, data.chain ? data.chain.block : null);
+          }
+        }
         var healthy = data.nodeReports.filter(function(n) { return n.status === "HEALTHY"; }).length;
         var recPost = {
           cat: "OBSERVATION",
@@ -1616,6 +1754,21 @@ async function main() {
       }
 
       dailyAlertCount++;
+
+      // v6.4: Open or update incident
+      var offlineNodes = confirmedProblems.filter(function(p) { return p.name !== "CHAIN"; }).map(function(p) { return p.name; });
+      var chainIssueCount = confirmedProblems.filter(function(p) { return p.name === "CHAIN"; }).length;
+      if (offlineNodes.length > 0 || chainIssueCount > 0) {
+        var incKey = offlineNodes.sort().join(",") || "CHAIN";
+        if (!activeIncidents[incKey]) {
+          var incSeverity = determineSeverity(offlineNodes.length, chainIssueCount, 0);
+          var incDesc = offlineNodes.length > 0
+            ? offlineNodes.length + " node(s) unhealthy: " + offlineNodes.join(", ")
+            : "Chain-level issue detected";
+          openIncident(incSeverity, offlineNodes.length > 0 ? offlineNodes : ["CHAIN"], incDesc, data.chain ? data.chain.block : null);
+        }
+      }
+
       var post = composeAlert(data);
       var pubResult = await publish(demos, post, cycleAttestations);
       if (pubResult) {
