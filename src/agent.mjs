@@ -1280,6 +1280,7 @@ function generatePrometheusMetrics(fleetData) {
       var staleness = getStaleness(); // FIX BUG 7
       var payload = {
         agent: AGENT_NAME,
+        description: "Autonomous health oracle for the Demos Network. Monitors 7 validator nodes + public network nodes every 20min. Provides machine-readable signals, incidents, reputation scores, and on-chain attested health reports via SuperColony.",
         wallet: AGENT_WALLET,
         version: "6.8",
         fleet_size: FLEET_SIZE,
