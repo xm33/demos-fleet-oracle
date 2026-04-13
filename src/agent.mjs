@@ -1928,9 +1928,104 @@ async function main() {
   log("\nNext check in " + (INTERVAL_MS / 1000 / 60) + " minutes. Agent running...\n");
 }
 
+async function pollTelegram() {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+  var offset = 0;
+  var NL = "\n";
+  log("Telegram bot polling started...");
+  while (true) {
+    try {
+      var r = await fetch("https://api.telegram.org/bot" + TELEGRAM_BOT_TOKEN + "/getUpdates?timeout=10&offset=" + offset);
+      var data = await r.json();
+      if (data.ok && data.result && data.result.length > 0) {
+        for (var update of data.result) {
+          offset = update.update_id + 1;
+          var msg = update.message || update.edited_message;
+          if (!msg || !msg.text) continue;
+          var chatId = String(msg.chat.id);
+          var text = msg.text.trim().toLowerCase().split("@")[0];
+          var reply = "";
+          if (text === "/status") {
+            var d = latestHealthData;
+            if (!d) { reply = "No data yet."; }
+            else {
+              var rec = d.recommendation || {};
+              var nodes = (d.fleet && d.fleet.nodes) || [];
+              var healthy = nodes.filter(function(n){return n.status==="HEALTHY";}).length;
+              var lines = ["<b>Fleet Status</b>"];
+              lines.push((rec.recommendation==="SAFE"?"\u2705":"\u26a0\ufe0f") + " <b>" + (rec.recommendation||"?") + "</b>");
+              lines.push("Block: " + ((d.fleet&&d.fleet.block)||"?"));
+              lines.push("Healthy: " + healthy + "/" + nodes.length);
+              lines.push("Cycle: " + (d.cycleCount||0));
+              nodes.forEach(function(n){
+                lines.push((n.status==="HEALTHY"?"\u2705":"\u274c") + " " + n.name + " (" + n.side + ") block " + (n.blockHeight||"?"));
+              });
+              reply = lines.join(NL);
+            }
+          } else if (text === "/incidents") {
+            try {
+              var incs = sharedDb.prepare("SELECT * FROM incidents ORDER BY started_at DESC LIMIT 5").all();
+              if (!incs || incs.length === 0) { reply = "\u2705 No incidents recorded."; }
+              else {
+                var lines = ["<b>Recent Incidents</b>"];
+                incs.forEach(function(inc){
+                  lines.push((inc.status==="active"?"\ud83d\udd34":"\u2705") + " [" + inc.severity.toUpperCase() + "] " + inc.description);
+                  lines.push("  Started: " + new Date(inc.started_at).toLocaleString());
+                  if (inc.status==="resolved") lines.push("  Duration: " + Math.round(inc.duration_seconds/60) + "min");
+                });
+                reply = lines.join(NL);
+              }
+            } catch(e) { reply = "Error: " + e.message; }
+          } else if (text === "/recommendation" || text === "/rec") {
+            var d = latestHealthData;
+            if (!d) { reply = "No data yet."; }
+            else {
+              var rec = d.recommendation || {};
+              var lines = ["<b>Recommendation</b>"];
+              lines.push((rec.recommendation==="SAFE"?"\u2705":rec.recommendation==="CAUTION"?"\u26a0\ufe0f":"\ud83d\udd34") + " <b>" + (rec.recommendation||"?") + "</b>");
+              lines.push("Safe to propose: " + (rec.safe_to_propose?"YES":"NO"));
+              lines.push("Confidence: " + (rec.confidence||"?"));
+              lines.push("Reason: " + (rec.reason||"?"));
+              reply = lines.join(NL);
+            }
+          } else if (text === "/uptime" || text === "/sla") {
+            var d = latestHealthData;
+            if (!d) { reply = "No data yet."; }
+            else {
+              var lines = ["<b>Node Uptime</b>"];
+              var up = d.uptime || {};
+              Object.keys(up).forEach(function(name){
+                var u = up[name];
+                var pct = u.total > 0 ? Math.round(u.healthy/u.total*100) : null;
+                lines.push((pct===100?"\u2705":pct>=80?"\u26a0\ufe0f":"\u274c") + " " + name + ": " + (pct!==null?pct+"%":"--") + " (" + u.healthy + "/" + u.total + ")");
+              });
+              reply = lines.join(NL);
+            }
+          } else if (text === "/help" || text === "/start") {
+            var lines = ["<b>Demos Fleet Oracle Bot</b>","","/status — full fleet status","/incidents — last 5 incidents","/rec — SAFE/CAUTION/UNSAFE","/uptime — per-node uptime %","/help — this message","","Dashboard: http://193.77.169.106:55225/dashboard"];
+            reply = lines.join(NL);
+          }
+          if (reply && chatId === TELEGRAM_CHAT_ID) {
+            await fetch("https://api.telegram.org/bot" + TELEGRAM_BOT_TOKEN + "/sendMessage", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ chat_id: chatId, text: reply, parse_mode: "HTML" }),
+            });
+          }
+        }
+      }
+    } catch(e) { logError("Telegram poll error: " + e.message); }
+    await sleep(3000);
+  }
+}
+
 main().catch(function(err) {
   logError("Fatal error:", err);
   process.exit(1);
+});
+
+pollTelegram().catch(function(err) {
+  logError("Telegram polling error:", err);
 });
 
 
