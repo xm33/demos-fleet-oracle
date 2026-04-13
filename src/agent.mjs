@@ -1174,6 +1174,25 @@ function discoverValidators(infoData) {
 // --- HTTP Health Endpoint ---
 let latestHealthData = null; // updated each cycle
 let latestPublicNodes = []; // updated each cycle
+let latestVersionData = { running: "6.8", latestCommit: null, latestMessage: null, latestDate: null, nodeVersion: null, checkedAt: null };
+
+async function checkLatestVersion() {
+  try {
+    var gr = await fetch("https://api.github.com/repos/xm33/demos-fleet-oracle/commits/master", { signal: AbortSignal.timeout(8000), headers: { "User-Agent": "demos-fleet-oracle" } });
+    var gd = await gr.json();
+    latestVersionData.latestCommit = gd.sha ? gd.sha.substring(0, 7) : null;
+    latestVersionData.latestMessage = gd.commit ? gd.commit.message.split("\n")[0] : null;
+    latestVersionData.latestDate = gd.commit ? gd.commit.author.date : null;
+    latestVersionData.checkedAt = new Date().toISOString();
+    log("  Version check: latest GitHub commit is " + latestVersionData.latestCommit + " — " + latestVersionData.latestMessage);
+  } catch(e) { log("  Version check failed: " + e.message); }
+  try {
+    var lr = await fetch("http://127.0.0.1:53550/info", { signal: AbortSignal.timeout(3000) });
+    var ld = await lr.json();
+    latestVersionData.nodeVersion = ld.version || null;
+    latestVersionData.nodeVersionName = ld.version_name || null;
+  } catch(e) {}
+}
 
 function startHealthServer() {
 
@@ -1261,7 +1280,9 @@ function generatePrometheusMetrics(fleetData) {
       var payload = {
         agent: AGENT_NAME,
         wallet: AGENT_WALLET,
-        version: "6.4",
+        version: "6.8",
+        fleet_size: FLEET_SIZE,
+        nodes: latestHealthData ? latestHealthData.nodeReports || [] : [],
         timestamp: new Date().toISOString(),
         cycleCount: cycleCount,
         lastCycleAt: staleness.lastCycleAt, // FIX BUG 7
@@ -1377,7 +1398,7 @@ function generatePrometheusMetrics(fleetData) {
       res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
       res.end(JSON.stringify({
         agent: "Demos Fleet Oracle",
-        version: "6.4",
+        version: "6.8",
         uptimeSeconds: Math.round(process.uptime()),
         lastCycleAt: latestHealthData ? latestHealthData.timestamp : null,
         lastPublishAt: lastPublishAt,
@@ -1388,6 +1409,9 @@ function generatePrometheusMetrics(fleetData) {
         demBalance: lastKnownBalance,
         endpoints: ["/health", "/self", "/docs", "/dashboard", "/reputation", "/peers", "/history", "/history/export", "/federate", "/badge", "/marketplace", "/consensus", "/incidents"]
       }, null, 2));
+    } else if (req.url === "/version") {
+      res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+      res.end(JSON.stringify(latestVersionData, null, 2));
     } else if (req.url === "/docs") {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Access-Control-Allow-Origin": "*" });
       res.end(DOCS_HTML);
@@ -2190,6 +2214,8 @@ async function main() {
   await cycle();
   setInterval(cycle, INTERVAL_MS);
   log("\nNext check in " + (INTERVAL_MS / 1000 / 60) + " minutes. Agent running...\n");
+  await checkLatestVersion();
+  setInterval(checkLatestVersion, 10 * 60 * 1000);
 }
 
 async function pollTelegram() {
