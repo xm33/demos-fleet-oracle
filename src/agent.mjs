@@ -1946,12 +1946,12 @@ async function pollTelegram() {
           var text = msg.text.trim().toLowerCase().split("@")[0];
           var reply = "";
           if (text === "/status") {
-            var d = latestHealthData;
-            if (!d) { reply = "No data yet."; }
-            else {
+            try {
+              var hr = await fetch("http://127.0.0.1:55225/health");
+              var d = await hr.json();
               var rec = d.recommendation || {};
               var nodes = (d.fleet && d.fleet.nodes) || [];
-              var healthy = nodes.filter(function(n){return n.status==="HEALTHY";}).length;
+              var healthy = d.fleet ? d.fleet.healthy : 0;
               var lines = ["<b>Fleet Status</b>"];
               lines.push((rec.recommendation==="SAFE"?"\u2705":"\u26a0\ufe0f") + " <b>" + (rec.recommendation||"?") + "</b>");
               lines.push("Block: " + ((d.fleet&&d.fleet.block)||"?"));
@@ -1961,7 +1961,7 @@ async function pollTelegram() {
                 lines.push((n.status==="HEALTHY"?"\u2705":"\u274c") + " " + n.name + " (" + n.side + ") block " + (n.blockHeight||"?"));
               });
               reply = lines.join(NL);
-            }
+            } catch(e) { reply = "Error fetching status: " + e.message; }
           } else if (text === "/incidents") {
             try {
               var incs = sharedDb.prepare("SELECT * FROM incidents ORDER BY started_at DESC LIMIT 5").all();
@@ -1977,9 +1977,9 @@ async function pollTelegram() {
               }
             } catch(e) { reply = "Error: " + e.message; }
           } else if (text === "/recommendation" || text === "/rec") {
-            var d = latestHealthData;
-            if (!d) { reply = "No data yet."; }
-            else {
+            try {
+              var hr = await fetch("http://127.0.0.1:55225/health");
+              var d = await hr.json();
               var rec = d.recommendation || {};
               var lines = ["<b>Recommendation</b>"];
               lines.push((rec.recommendation==="SAFE"?"\u2705":rec.recommendation==="CAUTION"?"\u26a0\ufe0f":"\ud83d\udd34") + " <b>" + (rec.recommendation||"?") + "</b>");
@@ -1987,11 +1987,11 @@ async function pollTelegram() {
               lines.push("Confidence: " + (rec.confidence||"?"));
               lines.push("Reason: " + (rec.reason||"?"));
               reply = lines.join(NL);
-            }
+            } catch(e) { reply = "Error: " + e.message; }
           } else if (text === "/uptime" || text === "/sla") {
-            var d = latestHealthData;
-            if (!d) { reply = "No data yet."; }
-            else {
+            try {
+              var hr = await fetch("http://127.0.0.1:55225/health");
+              var d = await hr.json();
               var lines = ["<b>Node Uptime</b>"];
               var up = d.uptime || {};
               Object.keys(up).forEach(function(name){
@@ -2000,7 +2000,7 @@ async function pollTelegram() {
                 lines.push((pct===100?"\u2705":pct>=80?"\u26a0\ufe0f":"\u274c") + " " + name + ": " + (pct!==null?pct+"%":"--") + " (" + u.healthy + "/" + u.total + ")");
               });
               reply = lines.join(NL);
-            }
+            } catch(e) { reply = "Error: " + e.message; }
           } else if (text === "/help" || text === "/start") {
             var lines = ["<b>Demos Fleet Oracle Bot</b>","","/status — full fleet status","/incidents — last 5 incidents","/rec — SAFE/CAUTION/UNSAFE","/uptime — per-node uptime %","/help — this message","","Dashboard: http://193.77.169.106:55225/dashboard"];
             reply = lines.join(NL);
