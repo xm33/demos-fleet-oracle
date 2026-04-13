@@ -346,6 +346,13 @@ function generateSignals(data, stalenessSeconds) {
     }
   }
 
+  // Discovered non-fleet validators
+  var discovered = Object.values(discoveredPeers || {});
+  if (discovered.length > 0) {
+    var onlineDiscovered = discovered.filter(function(p) { return p.online; });
+    signals.push({ type: "discovered_validators", severity: "info", nodes: discovered.map(function(p) { return p.identity.substring(0,12)+"..."; }), value: discovered.length, message: discovered.length + " non-fleet validator(s) discovered (" + onlineDiscovered.length + " online)" });
+  }
+
   // All healthy (fleet only — public node signals don't affect this)
   var fleetSignals = signals.filter(function(s) { return s.type !== "public_node_offline" && s.type !== "public_network_block"; });
   if (fleetSignals.length === 0) {
@@ -1892,8 +1899,27 @@ async function main() {
 
       // --- Validator discovery ---
       if (!data.skip && data.nodeReports) {
-        // We use the raw /info peerlist which was already fetched in perceive()
-        // discoveredPeers is updated inside discoverValidators() which we call with the local info data
+        // Crawl n3's own peerlist
+        var localInfo = null;
+        try {
+          var lr = await fetch("http://127.0.0.1:53550/info", { signal: AbortSignal.timeout(5000) });
+          localInfo = await lr.json();
+          var newFromLocal = discoverValidators(localInfo);
+          if (newFromLocal.length > 0) log("  Discovery: " + newFromLocal.length + " new peer(s) from local node");
+        } catch(e) { log("  Discovery: local info fetch failed: " + e.message); }
+
+        // Crawl public node peerlists for additional validators
+        for (var pnName in PUBLIC_NODES) {
+          try {
+            var pnr = await fetch(PUBLIC_NODES[pnName].url + "/info", { signal: AbortSignal.timeout(5000) });
+            var pnInfo = await pnr.json();
+            var newFromPn = discoverValidators(pnInfo);
+            if (newFromPn.length > 0) log("  Discovery: " + newFromPn.length + " new peer(s) from " + pnName);
+          } catch(e) {}
+        }
+
+        var totalDiscovered = Object.keys(discoveredPeers).length;
+        if (totalDiscovered > 0) log("  Discovery: " + totalDiscovered + " total non-fleet validators tracked");
       }
 
       // --- Anomaly detection ---
