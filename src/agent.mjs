@@ -1553,6 +1553,10 @@ let sharedDb = null;
 async function checkBalance(demos) {
   try {
     var info = await demos.getAddressInfo(AGENT_WALLET);
+    if (!info || info.response === "Method not implemented: getAddressInfo") {
+      log("  Balance check: getAddressInfo not implemented on this node version — skipping");
+      return;
+    }
     var bal = Number(info.balance);
     lastKnownBalance = bal;
 
