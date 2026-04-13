@@ -138,6 +138,12 @@ const EXPECTED_FLEET = {
 
 const NODE_NAMES = Object.keys(EXPECTED_FLEET);
 const FLEET_SIZE = NODE_NAMES.length;
+
+const PUBLIC_NODES = {
+  "kyne-node2": { url: "http://node2.demos.sh:53550", identity: "0xc8bc5866fecf583bc1232f04fa54fd2c5a6f7c15b91c517ac60f468cdc0b8c82" },
+  "kyne-node3": { url: "http://node3.demos.sh:53550", identity: "0x24c664d9ef529f798e979357c6a7a01088226eefe05cfdb77fb42841f771e156" },
+  "kyne-node3b": { url: "http://node3.demos.sh:53540", identity: "0xcaeab45f01d6482c80b024e0332cbd8b483b47dde6533c330f244002b035ac59" },
+};
 const BLOCK_LAG_THRESHOLD = 3;
 const STALE_SECONDS_THRESHOLD = 120;
 const PROBE_TIMEOUT_MS = 5000;
@@ -735,6 +741,35 @@ async function probePublicRPCs(demos) {
   return { results: results, attestations: attestations };
 }
 
+async function probePublicNodes() {
+  var results = [];
+  for (var name in PUBLIC_NODES) {
+    var node = PUBLIC_NODES[name];
+    try {
+      var start = Date.now();
+      var res = await fetch(node.url + "/info", { signal: AbortSignal.timeout(5000) });
+      var latencyMs = Date.now() - start;
+      if (res.ok) {
+        var data = await res.json();
+        var block = null;
+        if (data.peerlist && data.peerlist[0] && data.peerlist[0].sync) {
+          block = data.peerlist[0].sync.block;
+        }
+        var identityMatch = data.identity === node.identity;
+        results.push({ name: name, ok: true, latencyMs: latencyMs, block: block, version: data.version || "?", peers: data.peerlist ? data.peerlist.length : 0, identityMatch: identityMatch });
+        log("  PublicNode " + name + ": OK " + latencyMs + "ms block=" + (block||"?") + " peers=" + (data.peerlist?data.peerlist.length:0));
+      } else {
+        results.push({ name: name, ok: false, error: "HTTP " + res.status });
+        log("  PublicNode " + name + ": FAIL HTTP " + res.status);
+      }
+    } catch(err) {
+      results.push({ name: name, ok: false, error: err.name === "TimeoutError" ? "Timeout" : err.message });
+      log("  PublicNode " + name + ": FAIL " + err.message);
+    }
+  }
+  return results;
+}
+
 async function checkExplorer() {
   log("  Explorer: disabled (SPA, not scrappable)");
   return { ok: false, block: null };
@@ -1014,6 +1049,7 @@ function discoverValidators(infoData) {
 
 // --- HTTP Health Endpoint ---
 let latestHealthData = null; // updated each cycle
+let latestPublicNodes = []; // updated each cycle
 
 function startHealthServer() {
 
@@ -1120,6 +1156,7 @@ function generatePrometheusMetrics(fleetData) {
         discoveredPeers: Object.keys(discoveredPeers).length,
         uptime: uptimeStats,
         activeIncidents: getActiveIncidentIds(),
+        publicNodes: latestPublicNodes || [],
         dahrEnabled: dahrAvailable === true,
         writeBudget: canPublish(), // FIX BUG 6: expose budget status
       };
@@ -1281,7 +1318,7 @@ h1{color:#58a6ff;margin-bottom:4px;font-size:1.4em}
 <div class="rec-box"><div class="rec" id="rec">—</div><div class="reason" id="rec-reason">—</div></div>
 <div class="grid" id="nodes"></div>
 <div class="metrics" id="metrics"></div>
-<div class="sla"><h2>Node SLA — uptime</h2><table><thead><tr><th>Node</th><th>Side</th><th>Block</th><th>Uptime</th><th></th></tr></thead><tbody id="sla-body"></tbody></table></div>
+<div class="public-nodes" id="pub-nodes" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px"><h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Public network nodes</h2><div id="pub-list">Loading...</div></div><div class="sla"><h2>Node SLA — uptime</h2><table><thead><tr><th>Node</th><th>Side</th><th>Block</th><th>Uptime</th><th></th></tr></thead><tbody id="sla-body"></tbody></table></div>
 <div class="chart-box"><h2>Block height (last 24h)</h2><canvas id="blk-chart" style="width:100%;height:120px;display:block"></canvas></div>
 <div class="incidents"><h2>Recent Incidents</h2><div id="inc-list">Loading...</div></div>
 <div class="footer">Demos Fleet Oracle v6.5 &bull; Auto-refresh 20s &bull; <a href="/health" style="color:#58a6ff">/health</a> &bull; <a href="/incidents" style="color:#58a6ff">/incidents</a> &bull; <a href="https://github.com/xm33/demos-fleet-oracle" style="color:#58a6ff">GitHub</a></div>
@@ -1349,6 +1386,17 @@ async function refresh(){
   try{
     var hr=await fetch("/history");var hd=await hr.json();
     drawChart(Array.isArray(hd)?hd:(hd.history||[]));
+  }catch(e){}
+  try{
+    var pn=document.getElementById("pub-list");
+    if(pn&&d.publicNodes&&d.publicNodes.length>0){
+      var pt='<table style="width:100%;border-collapse:collapse;font-size:0.85em"><thead><tr><th style="color:#8b949e;text-align:left;padding:4px 8px;border-bottom:1px solid #21262d">Node</th><th style="color:#8b949e;text-align:left;padding:4px 8px;border-bottom:1px solid #21262d">Block</th><th style="color:#8b949e;text-align:left;padding:4px 8px;border-bottom:1px solid #21262d">Latency</th><th style="color:#8b949e;text-align:left;padding:4px 8px;border-bottom:1px solid #21262d">Peers</th><th style="color:#8b949e;text-align:left;padding:4px 8px;border-bottom:1px solid #21262d">Status</th></tr></thead><tbody>';
+      d.publicNodes.forEach(function(n){
+        pt+='<tr><td style="padding:6px 8px;border-bottom:1px solid #21262d"><b>'+n.name+'</b></td><td style="padding:6px 8px;border-bottom:1px solid #21262d">'+(n.block||'?')+'</td><td style="padding:6px 8px;border-bottom:1px solid #21262d">'+(n.latencyMs?n.latencyMs+'ms':'?')+'</td><td style="padding:6px 8px;border-bottom:1px solid #21262d">'+(n.peers||'?')+'</td><td style="padding:6px 8px;border-bottom:1px solid #21262d">'+(n.ok?'\u2705 online':'\u274c offline')+'</td></tr>';
+      });
+      pt+='</tbody></table>';
+      pn.innerHTML=pt;
+    } else if(pn) { pn.innerHTML='<span style="color:#8b949e">No public nodes data yet</span>'; }
   }catch(e){}
   try{
     var ir=await fetch("/incidents?limit=10");var id=await ir.json();
@@ -1627,6 +1675,8 @@ async function main() {
       var publicRpcProbe = await probePublicRPCs(demos);
       var publicRpcResults = publicRpcProbe.results;
       var cycleAttestations = publicRpcProbe.attestations;
+      var publicNodeResults = await probePublicNodes();
+      latestPublicNodes = publicNodeResults;
 
       // --- Check explorer (every cycle, lightweight) ---
       var explorerResult = await checkExplorer();
