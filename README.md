@@ -6,43 +6,43 @@ Autonomous health oracle for the [Demos Network](https://demos.network) validato
 
 | Endpoint | Description |
 |----------|-------------|
-| [/dashboard](http://193.77.169.106:55225/dashboard) | Live fleet dashboard — auto-refresh 20s |
-| [/health](http://193.77.169.106:55225/health) | Full fleet snapshot — signals, incidents, reputation |
-| [/incidents](http://193.77.169.106:55225/incidents) | Incident log with severity and duration |
-| [/reputation](http://193.77.169.106:55225/reputation) | Per-node reputation scores 0-100 (24h window) |
-| [/sentinel](http://193.77.169.106:55225/sentinel) | Anomaly detector status |
-| [/version](http://193.77.169.106:55225/version) | Running version vs latest GitHub commit |
-| [/federate](http://193.77.169.106:55225/federate) | Prometheus metrics endpoint |
-| [/history](http://193.77.169.106:55225/history) | Last 72 health cycles (24h) |
-| [/peers](http://193.77.169.106:55225/peers) | Known + discovered validators |
-| [/badge](http://193.77.169.106:55225/badge) | SVG status badge |
-| [/docs](http://193.77.169.106:55225/docs) | Full API documentation |
+| [/dashboard](https://demos-oracle.com/dashboard) | Live fleet dashboard — auto-refresh 20s |
+| [/health](https://demos-oracle.com/health) | Full fleet snapshot — signals, incidents, reputation |
+| [/incidents](https://demos-oracle.com/incidents) | Incident log with severity and duration |
+| [/reputation](https://demos-oracle.com/reputation) | Per-node reputation scores 0-100 (24h window) |
+| [/sentinel](https://demos-oracle.com/sentinel) | Anomaly detector status |
+| [/version](https://demos-oracle.com/version) | Running version vs latest GitHub commit |
+| [/federate](https://demos-oracle.com/federate) | Prometheus metrics endpoint |
+| [/history](https://demos-oracle.com/history) | Last 72 health cycles (24h) |
+| [/peers](https://demos-oracle.com/peers) | Known + discovered validators |
+| [/badge](https://demos-oracle.com/badge) | SVG status badge |
+| [/docs](https://demos-oracle.com/docs) | Full API documentation |
 
 ## Quick Start
 
 ### Check fleet health
 ```bash
-curl -s http://193.77.169.106:55225/health | jq '{recommendation, signals, fleet_size, healthy: .fleet.healthy}'
+curl -s https://demos-oracle.com/health | jq '{recommendation, signals, fleet_size, healthy: .fleet.healthy}'
 ```
 
 ### Get machine-readable signals
 ```bash
-curl -s http://193.77.169.106:55225/health | jq '.signals'
+curl -s https://demos-oracle.com/health | jq '.signals'
 ```
 
 ### Filter warnings and criticals only
 ```bash
-curl -s http://193.77.169.106:55225/health | jq '.signals | map(select(.severity == "warning" or .severity == "critical"))'
+curl -s https://demos-oracle.com/health | jq '.signals | map(select(.severity == "warning" or .severity == "critical"))'
 ```
 
 ### Check if safe to propose
 ```bash
-curl -s http://193.77.169.106:55225/health | jq '.recommendation.safe_to_propose'
+curl -s https://demos-oracle.com/health | jq '.recommendation.safe_to_propose'
 ```
 
 ### Embed status badge
 ```markdown
-![Fleet Status](http://193.77.169.106:55225/badge)
+![Fleet Status](https://demos-oracle.com/badge)
 ```
 
 ### Prometheus scraping
@@ -51,7 +51,7 @@ curl -s http://193.77.169.106:55225/health | jq '.recommendation.safe_to_propose
   scrape_interval: 60s
   metrics_path: /federate
   static_configs:
-    - targets: ['193.77.169.106:55225']
+    - targets: ['demos-oracle.com']
 ```
 
 ## Signal Schema
