@@ -577,8 +577,8 @@ async function perceive() {
   }
 
   var n3Stale = secsSinceBlock.n3 != null ? secsSinceBlock.n3 : null;
-  if (n3Stale != null && n3Stale > STALE_SECONDS_THRESHOLD) {
-    if (cycleCount > 2) problems.push({ name: "CHAIN", issues: ["STALE(" + Math.round(n3Stale) + "s since last block)"] });
+  if (n3Stale != null && n3Stale > STALE_SECONDS_THRESHOLD && n3Stale < 3600) {
+    if (cycleCount > 1) problems.push({ name: "CHAIN", issues: ["STALE(" + Math.round(n3Stale) + "s since last block)"] });
     log("  !! CHAIN: stale " + Math.round(n3Stale) + "s since last block");
   }
 
