@@ -79,7 +79,7 @@ const DAILY_SUMMARY_CYCLES = 72;
 const HEALTH_PORT = parseInt(process.env.HEALTH_PORT || "8080");
 
 // Agent profile
-const AGENT_WALLET = "0xbdb3e8189a62dce62229bf3badbf01e5bdb3fbeb22f6f59f4c7c2edafe802a45";
+let AGENT_WALLET = "0xbdb3e8189a62dce62229bf3badbf01e5bdb3fbeb22f6f59f4c7c2edafe802a45"; // will be updated after wallet connect
 const INSTANCE_ROLE = process.env.INSTANCE_ROLE || "primary";
 const PRIMARY_ORACLE_URL = process.env.PRIMARY_ORACLE_URL || "";
 let primaryLastSeen = 0; // timestamp of last successful primary health fetch
@@ -1826,6 +1826,8 @@ async function main() {
   var demos = new Demos();
   await demos.connect(RPC_URL);
   await demos.connectWallet(MNEMONIC);
+  AGENT_WALLET = demos.getAddress();
+  log("  Agent wallet: " + AGENT_WALLET);
   log("Wallet connected. Agent is live.\n");
 
   // Register agent profile (fire and forget)
