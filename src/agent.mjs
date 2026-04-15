@@ -1838,7 +1838,10 @@ function drawChart(hist){
   if(t1){ctx.textAlign="right";ctx.fillText(t1.toLocaleTimeString(),W-4,H-2);}
 }
 var FLEET_NODES = ["n1","n2","n3","n4","n5","n6","m1","m3","n9"];
-function isFleetIncident(inc) { return inc.affectedNodes && inc.affectedNodes.length > 0 && inc.affectedNodes.every(function(n){ return FLEET_NODES.includes(n); }); }
+function isFleetIncident(inc) {
+  if(inc.description && (inc.description.indexOf("Fleet reference")===0 || inc.description === "Chain-level issue detected")) return true;
+  return inc.affectedNodes && inc.affectedNodes.length > 0 && inc.affectedNodes.every(function(n){ return FLEET_NODES.includes(n); });
+}
 async function refresh(){
   try{
     var r=await fetch("/health");var d=await r.json();
@@ -2635,7 +2638,7 @@ async function main() {
           var incSeverity = determineSeverity(offlineNodes.length, chainIssueCount, 0);
           var incDesc = offlineNodes.length > 0
             ? offlineNodes.length + " node(s) unhealthy: " + offlineNodes.join(", ")
-            : "Chain-level issue detected";
+            : "Fleet reference chain issue detected";
           openIncident(incSeverity, offlineNodes.length > 0 ? offlineNodes : ["CHAIN"], incDesc, data.chain ? data.chain.block : null);
         }
       }
