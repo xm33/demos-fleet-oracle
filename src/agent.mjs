@@ -1737,15 +1737,76 @@ h1{color:#58a6ff;margin-bottom:4px;font-size:1.4em}
 .rec-box .rec{font-size:1.6em;font-weight:bold;margin-bottom:4px}
 .rec-box .reason{color:#8b949e;font-size:0.85em}
 </style></head><body>
-<h1>Demos Fleet Dashboard</h1>
-<div class="sub" id="updated">Loading...</div>
+<div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+  <h1 style="margin:0">Demos Network Oracle</h1>
+  <span style="font-size:0.75em;color:#484f58" id="updated">Loading...</span>
+</div>
 <div class="rec-box"><div class="rec" id="rec">—</div><div class="reason" id="rec-reason">—</div></div>
-<div class="grid" id="nodes"></div>
+
+<!-- SECTION 1: Summary cards — public network focused -->
 <div class="metrics" id="metrics"></div>
-<div id="decision-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px"><h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">🧠 Network Intelligence</h2><div id="decision-status">Loading...</div></div><div id="signals-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px"><h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Network signals</h2><div id="signals-list">Loading...</div></div><div id="sentinel-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px"><h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">🛡️ Sentinel v1</h2><div id="sentinel-status">Loading...</div></div><div class="public-nodes" id="pub-nodes" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px"><h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Public network nodes</h2><div id="pub-list">Loading...</div></div><div id="rep-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px"><h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Reputation scores (24h)</h2><div id="rep-list">Loading...</div></div><div class="sla"><h2>Node SLA — uptime</h2><table><thead><tr><th>Node</th><th>Block</th><th>Uptime</th><th></th></tr></thead><tbody id="sla-body"></tbody></table></div>
-<div class="chart-box"><h2>Block height (last 24h)</h2><canvas id="blk-chart" style="width:100%;height:120px;display:block"></canvas></div>
+
+<!-- SECTION 2: Network Agreement Panel -->
+<div id="agreement-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px">
+  <h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">📡 Network Agreement</h2>
+  <div id="agreement-status">Loading...</div>
+</div>
+
+<!-- SECTION 3: Public network nodes -->
+<div class="public-nodes" id="pub-nodes" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px">
+  <h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Public network nodes</h2>
+  <div id="pub-list">Loading...</div>
+</div>
+
+<!-- SECTION 4: Network Intelligence -->
+<div id="decision-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px">
+  <h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">🧠 Network Intelligence</h2>
+  <div id="decision-status">Loading...</div>
+</div>
+
+<!-- SECTION 5: Signals + Sentinel -->
+<div id="signals-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px">
+  <h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Network signals</h2>
+  <div id="signals-list">Loading...</div>
+</div>
+<div id="sentinel-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px">
+  <h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">🛡️ Sentinel v1</h2>
+  <div id="sentinel-status">Loading...</div>
+</div>
+
+<!-- SECTION 6: Incidents -->
 <div class="incidents"><h2>Recent Incidents</h2><div id="inc-list">Loading...</div></div>
-<div class="footer">Demos Fleet Oracle v6.8 &bull; ${INSTANCE_ROLE.toUpperCase()} &bull; Auto-refresh 20s &bull; <a href="/health" style="color:#58a6ff">/health</a> &bull; <a href="/incidents" style="color:#58a6ff">/incidents</a> &bull; <a href="https://github.com/xm33/demos-fleet-oracle" style="color:#58a6ff">GitHub</a></div>
+
+<!-- SECTION 7: Reference layer — fleet nodes (secondary) -->
+<details style="margin-bottom:24px">
+  <summary style="cursor:pointer;color:#58a6ff;font-size:1em;font-weight:600;padding:12px 0;user-select:none">
+    🔧 Reference Layer — Fleet nodes (${FLEET_SIZE} nodes)
+  </summary>
+  <div style="margin-top:12px">
+    <div class="grid" id="nodes"></div>
+    <div id="rep-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px;margin-top:12px">
+      <h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Reputation scores (24h)</h2>
+      <div id="rep-list">Loading...</div>
+    </div>
+    <div class="sla"><h2>Node SLA — uptime</h2>
+      <table><thead><tr><th>Node</th><th>Block</th><th>Uptime</th><th></th></tr></thead>
+      <tbody id="sla-body"></tbody></table>
+    </div>
+    <div class="chart-box"><h2>Block height (last 24h)</h2><canvas id="blk-chart" style="width:100%;height:120px;display:block"></canvas></div>
+  </div>
+</details>
+
+<!-- SECTION 8: How we know -->
+<div style="background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:14px 16px;margin-bottom:24px;font-size:0.82em;color:#8b949e">
+  <span style="color:#58a6ff;font-weight:600">How we know</span> &nbsp;·&nbsp;
+  Public network observed via <span id="hw-public-count">—</span> public nodes &nbsp;·&nbsp;
+  Confidence anchored by <span id="hw-fleet-count">—</span> reference nodes &nbsp;·&nbsp;
+  Updated every 1 min &nbsp;·&nbsp;
+  Data quality: <span id="hw-quality">—</span> &nbsp;·&nbsp;
+  <a href="/docs" style="color:#58a6ff">Methodology</a>
+</div>
+
+<div class="footer">Demos Network Oracle v6.9 &bull; ${INSTANCE_ROLE.toUpperCase()} &bull; Auto-refresh 20s &bull; <a href="/health" style="color:#58a6ff">/health</a> &bull; <a href="/organism" style="color:#58a6ff">/organism</a> &bull; <a href="/incidents" style="color:#58a6ff">/incidents</a> &bull; <a href="https://github.com/xm33/demos-fleet-oracle" style="color:#58a6ff">GitHub</a></div>
 <script>
 function drawChart(hist){
   var canvas=document.getElementById("blk-chart");
@@ -1811,6 +1872,38 @@ async function refresh(){
     }
     mg.innerHTML+='<div class="metric"><div class="label">Cycle</div><div class="value">'+d.cycleCount+'</div></div>';
     mg.innerHTML+='<div class="metric"><div class="label">Active Incidents</div><div class="value">'+((d.activeIncidents&&d.activeIncidents.length)||0)+'</div></div>';
+    if(d.network_agreement){
+      var na=d.network_agreement;
+      mg.innerHTML+='<div class="metric"><div class="label">Public Nodes</div><div class="value">'+na.aligned_nodes+'/'+na.total_nodes+' aligned</div></div>';
+    }
+
+    // Network agreement panel
+    var agBox=document.getElementById("agreement-status");
+    if(agBox&&d.network_agreement){
+      var na=d.network_agreement;
+      var agCol=na.status==="strong"?"#3fb950":na.status==="moderate"?"#d29922":"#f85149";
+      var html='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">';
+      html+='<div style="background:#0d1117;border-radius:6px;padding:10px 16px;text-align:center;min-width:90px"><div style="color:#8b949e;font-size:0.75em">Agreement</div><div style="font-size:1.1em;font-weight:bold;color:'+agCol+'">'+na.status.toUpperCase()+'</div></div>';
+      html+='<div style="background:#0d1117;border-radius:6px;padding:10px 16px;text-align:center;min-width:90px"><div style="color:#8b949e;font-size:0.75em">Aligned</div><div style="font-size:1.1em;font-weight:bold;color:#c9d1d9">'+na.aligned_nodes+'/'+na.total_nodes+'</div></div>';
+      html+='<div style="background:#0d1117;border-radius:6px;padding:10px 16px;text-align:center;min-width:90px"><div style="color:#8b949e;font-size:0.75em">Median Block</div><div style="font-size:1.1em;font-weight:bold;color:#c9d1d9">'+(na.median_block||"?")+'</div></div>';
+      html+='<div style="background:#0d1117;border-radius:6px;padding:10px 16px;text-align:center;min-width:90px"><div style="color:#8b949e;font-size:0.75em">Block Spread</div><div style="font-size:1.1em;font-weight:bold;color:'+(na.block_spread>100?"#f85149":na.block_spread>10?"#d29922":"#3fb950")+'">'+na.block_spread+'</div></div>';
+      html+='<div style="background:#0d1117;border-radius:6px;padding:10px 16px;text-align:center;min-width:90px"><div style="color:#8b949e;font-size:0.75em">Agreement %</div><div style="font-size:1.1em;font-weight:bold;color:'+agCol+'">'+na.agreement_ratio+'%</div></div>';
+      html+='</div>';
+      if(na.outlier_nodes&&na.outlier_nodes.length>0){
+        html+='<div style="font-size:0.82em;color:#d29922;margin-top:4px">⚠ Outliers: '+na.outlier_nodes.map(function(o){return o.name+' ('+o.block+', lag '+o.lag+')'}).join(', ')+'</div>';
+      } else {
+        html+='<div style="font-size:0.82em;color:#3fb950;margin-top:4px">✅ All public nodes aligned with network head</div>';
+      }
+      agBox.innerHTML=html;
+    }
+
+    // How we know box
+    var hwPublic=document.getElementById("hw-public-count");
+    var hwFleet=document.getElementById("hw-fleet-count");
+    var hwQuality=document.getElementById("hw-quality");
+    if(hwPublic&&d.network_agreement) hwPublic.textContent=d.network_agreement.total_nodes;
+    if(hwFleet&&d.fleet) hwFleet.textContent=d.fleet.size;
+    if(hwQuality&&d.scores) hwQuality.textContent=d.scores.data_confidence+'%';
     var sb=document.getElementById("sla-body");sb.innerHTML="";
     var up=d.uptime||{};
     if(d.fleet&&d.fleet.nodes){d.fleet.nodes.forEach(function(n){
