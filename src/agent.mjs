@@ -1848,11 +1848,19 @@ h1{color:#58a6ff;margin-bottom:4px;font-size:1.4em}
   Confidence anchored by <span id="hw-fleet-count">—</span> reference nodes &nbsp;·&nbsp;
   Updated every 20s &nbsp;·&nbsp;
   Data quality: <span id="hw-quality">—</span> &nbsp;·&nbsp;
-  All observations <span style="color:#3fb950;font-weight:600">DAHR attested</span> on-chain via SuperColony &nbsp;·&nbsp;
   <a href="/docs" style="color:#58a6ff">Methodology</a>
 </div>
 
-<div class="footer">Demos Network Oracle v6.9 &bull; ${INSTANCE_ROLE.toUpperCase()} &bull; DAHR Attested &bull; Powered by Demos &bull; Auto-refresh 20s &bull; <a href="/health" style="color:#58a6ff">/health</a> &bull; <a href="/organism" style="color:#58a6ff">/organism</a> &bull; <a href="/incidents" style="color:#58a6ff">/incidents</a> &bull; <a href="https://github.com/xm33/demos-fleet-oracle" style="color:#58a6ff">GitHub</a></div>
+<div class="footer" style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap">
+  <span>Demos Network Oracle v6.9 &bull; ${INSTANCE_ROLE.toUpperCase()}</span>
+  <span style="color:#3fb950;font-weight:600">&#10003; DAHR Attested</span>
+  <span style="display:flex;align-items:center;gap:5px;background:#161b22;border:1px solid #30363d;border-radius:6px;padding:3px 8px;font-size:0.78em">powered by <img src="https://framerusercontent.com/assets/IyyrITqCg67NykDbX6dibaTrhfA.svg" height="14" style="vertical-align:middle;filter:brightness(10)"></span>
+  <span style="color:#444">|</span>
+  <a href="/health" style="color:#58a6ff">/health</a>
+  <a href="/organism" style="color:#58a6ff">/organism</a>
+  <a href="/incidents" style="color:#58a6ff">/incidents</a>
+  <a href="https://github.com/xm33/demos-fleet-oracle" style="color:#58a6ff">GitHub</a>
+</div>
 <script>
 function drawChart(hist){
   var canvas=document.getElementById("blk-chart");
