@@ -309,19 +309,22 @@ function determineSeverity(offlineCount, chainIssues, lagCount) {
 }
 
 function getRecommendation(data) {
-  if (!data || !data.nodeReports) return { recommendation: "INSUFFICIENT_DATA", safe_to_propose: false, confidence: "low", reason: "No fleet data available" };
-  var healthy = data.nodeReports.filter(function(n) { return n.status === "HEALTHY"; }).length;
-  var total = data.nodeReports.length;
-  var offline = data.nodeReports.filter(function(n) { return n.issues && n.issues.some(function(i) { return i === "OFFLINE"; }); }).length;
+  // Recommendation is based on PUBLIC network state only — not fleet health
   var publicActiveIncs = getPublicActiveIncidentIds();
-  var chainOk = publicActiveIncs.length === 0;
-  if (healthy === total && chainOk && publicActiveIncs.length === 0) {
+  var pubNodes = latestPublicNodes || [];
+  var pubOnline = pubNodes.filter(function(n) { return n.ok; }).length;
+  var pubTotal = pubNodes.length;
+
+  if (pubTotal === 0) {
+    return { recommendation: "INSUFFICIENT_DATA", safe_to_propose: false, confidence: "low", reason: "No public node data available" };
+  }
+  if (publicActiveIncs.length === 0 && pubOnline >= Math.ceil(pubTotal * 0.5)) {
     return { recommendation: "SAFE", safe_to_propose: true, confidence: "high", reason: "Network stable, no issues detected" };
   }
-  if (healthy >= Math.ceil(total * 0.7) && offline < 3) {
+  if (publicActiveIncs.length > 0 || pubOnline < pubTotal) {
     return { recommendation: "CAUTION", safe_to_propose: true, confidence: "medium", reason: "Network stable, minor observations present" };
   }
-  return { recommendation: "UNSAFE", safe_to_propose: false, confidence: "high", reason: healthy + "/" + total + " healthy, significant issues detected" };
+  return { recommendation: "UNSAFE", safe_to_propose: false, confidence: "high", reason: "Significant public network issues detected" };
 }
 
 // Load incident counter from DB on startup
@@ -388,14 +391,17 @@ function generateDecision(data, stalenessSeconds, signals) {
     return { status: "uncertain", trend: "unknown", confidence: 0.0, risk_level: "high", reason: "No fleet data available", affected_components: ["data"], valid_until: new Date(Date.now() + 60000).toISOString(), last_updated: new Date().toISOString() };
   }
 
-  var total = data.nodeReports.length;
-  var healthy = data.nodeReports.filter(function(n) { return n.status === "HEALTHY"; }).length;
-  var offline = data.nodeReports.filter(function(n) { return !n.online; }).length;
-  var blocks = data.nodeReports.map(function(n) { return n.blockHeight; }).filter(Boolean);
+  // Use PUBLIC nodes for decision — not fleet
+  var pubNodes = latestPublicNodes || [];
+  var total = pubNodes.length || 1;
+  var healthy = pubNodes.filter(function(n) { return n.ok; }).length;
+  var offline = pubNodes.filter(function(n) { return !n.ok; }).length;
+  var blocks = pubNodes.map(function(n) { return n.block; }).filter(Boolean);
   var blockSpread = blocks.length > 1 ? Math.max.apply(null, blocks) - Math.min.apply(null, blocks) : 0;
-  var criticalSignals = signals.filter ? signals.filter(function(s) { return s.severity === "critical"; }) : [];
-  var warningSignals = signals.filter ? signals.filter(function(s) { return s.severity === "warning"; }) : [];
-  var chainStall = criticalSignals.some(function(s) { return s.type === "chain_stall" || s.type === "block_divergence"; });
+  var PUBLIC_SIGNAL_TYPES = ["public_node_offline","public_network_block","discovered_validators"];
+  var criticalSignals = signals.filter ? signals.filter(function(s) { return s.severity === "critical" && PUBLIC_SIGNAL_TYPES.indexOf(s.type) !== -1; }) : [];
+  var warningSignals = signals.filter ? signals.filter(function(s) { return s.severity === "warning" && PUBLIC_SIGNAL_TYPES.indexOf(s.type) !== -1; }) : [];
+  var chainStall = false;
 
   // Confidence: start at 1.0, subtract penalties
   var confidence = 1.0;
@@ -456,19 +462,20 @@ function generateDecision(data, stalenessSeconds, signals) {
 function generateScores(data, stalenessSeconds, signals) {
   if (!data || !data.nodeReports) return { network_health: 0, stability: 0, partition_risk: 100, data_confidence: 0 };
 
-  var total = data.nodeReports.length;
-  var healthy = data.nodeReports.filter(function(n) { return n.status === "HEALTHY"; }).length;
-  var offline = data.nodeReports.filter(function(n) { return !n.online; }).length;
-  var blocks = data.nodeReports.map(function(n) { return n.blockHeight; }).filter(Boolean);
+  // Use PUBLIC nodes for scores — not fleet
+  var pubNodes = latestPublicNodes || [];
+  var total = pubNodes.length || 1;
+  var healthy = pubNodes.filter(function(n) { return n.ok; }).length;
+  var offline = pubNodes.filter(function(n) { return !n.ok; }).length;
+  var blocks = pubNodes.map(function(n) { return n.block; }).filter(Boolean);
   var blockSpread = blocks.length > 1 ? Math.max.apply(null, blocks) - Math.min.apply(null, blocks) : 0;
-  var sideA = data.nodeReports.filter(function(n) { return n.side === "A" && n.online; }).length;
-  var sideB = data.nodeReports.filter(function(n) { return n.side === "B" && n.online; }).length;
-  var sideImbalance = Math.abs(sideA - sideB);
-  var criticalCount = signals.filter ? signals.filter(function(s) { return s.severity === "critical"; }).length : 0;
+  var sideImbalance = 0;
+  var PUBLIC_SIGS = ["public_node_offline","public_network_block"];
+  var criticalCount = signals.filter ? signals.filter(function(s) { return s.severity === "critical" && PUBLIC_SIGS.indexOf(s.type) !== -1; }).length : 0;
 
   var network_health = Math.round((healthy / total) * 100);
   var stability = Math.max(0, Math.round(100 - (blockSpread / 10) - (criticalCount * 15) - (offline * 10)));
-  var partition_risk = Math.min(100, Math.round((sideImbalance / Math.max(sideA, sideB, 1)) * 50 + (blockSpread > 50 ? 30 : 0)));
+  var partition_risk = Math.min(100, Math.round((blockSpread > 100 ? 50 : blockSpread > 10 ? 20 : 0) + (offline > 0 ? offline * 10 : 0)));
   var data_confidence = Math.max(0, Math.round(100 - (stalenessSeconds > 300 ? 40 : stalenessSeconds > 60 ? 10 : 0) - (criticalCount * 10)));
 
   return {
@@ -1983,6 +1990,15 @@ async function refresh(){
       html+='<div style="font-size:0.82em;color:#8b949e;padding:8px 0;border-top:1px solid #21262d;margin-top:4px">'+dec.reason+'</div>';
       html+='<div style="font-size:0.75em;color:#484f58;margin-top:6px">Valid until: '+new Date(dec.valid_until).toLocaleTimeString()+'</div>';
       db.innerHTML=html;
+    }
+    // Filter signals — only show public/network signals on main page
+    // Fleet-internal signals go to reference layer only
+    var FLEET_SIGNAL_TYPES = ["node_offline","block_lag","not_synced","not_ready","identity_mismatch","low_online_count","block_divergence","chain_stall"];
+    if(d.signals) d.signals = d.signals.filter(function(s){ return FLEET_SIGNAL_TYPES.indexOf(s.type) === -1; });
+    if(d.signals_grouped) {
+      ["critical","warning","info"].forEach(function(sev){
+        if(d.signals_grouped[sev]) d.signals_grouped[sev] = d.signals_grouped[sev].filter(function(s){ return FLEET_SIGNAL_TYPES.indexOf(s.type) === -1; });
+      });
     }
     var sl=document.getElementById("signals-list");
     if(sl&&d.signals&&d.signals.length>0){
