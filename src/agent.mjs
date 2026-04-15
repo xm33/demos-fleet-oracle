@@ -2039,6 +2039,7 @@ async function refresh(){
         if(fleetIncs.length>5){fil.innerHTML+='<div style="margin-top:8px;font-size:0.82em"><a href="/incidents" style="color:#58a6ff">View all \u2192</a></div>';}
       }
     }
+  }catch(e){document.getElementById("updated").textContent="Error: "+e.message;}
 }
 refresh();setInterval(refresh,20000);
 </script></body></html>`;
