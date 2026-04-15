@@ -1764,27 +1764,27 @@ h1{color:#58a6ff;margin-bottom:4px;font-size:1.4em}
   <div id="decision-status">Loading...</div>
 </div>
 
-<!-- SECTION 5: Signals + Sentinel -->
+<!-- SECTION 5: Network signals — network-level only -->
 <div id="signals-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px">
   <h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Network signals</h2>
   <div id="signals-list">Loading...</div>
-</div>
-<div id="sentinel-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px">
-  <h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">🛡️ Sentinel v1</h2>
-  <div id="sentinel-status">Loading...</div>
 </div>
 
 <!-- SECTION 6: Incidents -->
 <div class="incidents"><h2>Recent Incidents</h2><div id="inc-list">Loading...</div></div>
 
-<!-- SECTION 7: Reference layer — fleet nodes (secondary) -->
+<!-- SECTION 7: Reference layer — fleet nodes (secondary, collapsed) -->
 <details style="margin-bottom:24px">
-  <summary style="cursor:pointer;color:#58a6ff;font-size:1em;font-weight:600;padding:12px 0;user-select:none">
+  <summary style="cursor:pointer;color:#484f58;font-size:0.9em;font-weight:500;padding:10px 0;user-select:none">
     🔧 Reference Layer — Fleet nodes (${FLEET_SIZE} nodes)
   </summary>
   <div style="margin-top:12px">
     <div class="grid" id="nodes"></div>
-    <div id="rep-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px;margin-top:12px">
+    <div id="sentinel-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px;margin-top:12px">
+      <h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">🛡️ Sentinel v1</h2>
+      <div id="sentinel-status">Loading...</div>
+    </div>
+    <div id="rep-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px">
       <h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Reputation scores (24h)</h2>
       <div id="rep-list">Loading...</div>
     </div>
@@ -1839,8 +1839,11 @@ function drawChart(hist){
 async function refresh(){
   try{
     var r=await fetch("/health");var d=await r.json();
-    document.getElementById("updated").textContent="Block "+((d.fleet&&d.fleet.block)||"?")+
-      " | "+d.fleet.healthy+"/"+d.fleet.size+" healthy | Updated "+new Date(d.timestamp).toLocaleTimeString()+
+    var pubBlock = (d.network_agreement&&d.network_agreement.max_block) || "?";
+    var pubTotal = (d.network_agreement&&d.network_agreement.total_nodes) || "?";
+    var pubAligned = (d.network_agreement&&d.network_agreement.aligned_nodes) || "?";
+    document.getElementById("updated").textContent="Block "+pubBlock+
+      " | "+pubAligned+"/"+pubTotal+" public nodes | Updated "+new Date(d.timestamp).toLocaleTimeString()+
       " | Staleness "+d.stalenessSeconds+"s";
     var rec=d.recommendation||{};
     var re=document.getElementById("rec");
@@ -1853,29 +1856,22 @@ async function refresh(){
       ng.innerHTML+='<div class="node '+cls+'"><h3>'+n.name+'</h3><div class="status">'+(n.status==="HEALTHY"?"\u2705":"\u274C")+" "+n.status+'</div><div class="block">Block '+(n.blockHeight||"?")+'</div></div>';
     });}
     var mg=document.getElementById("metrics");mg.innerHTML="";
-    mg.innerHTML+='<div class="metric"><div class="label">Block Height</div><div class="value">'+((d.fleet&&d.fleet.block)||"?")+'</div></div>';
-    mg.innerHTML+='<div class="metric"><div class="label">TPS</div><div class="value">'+((d.fleet&&d.fleet.tps)||"0")+'</div></div>';
+    // Summary cards — public network focused only
+    if(d.network_agreement){
+      var na=d.network_agreement;
+      var agCol=na.status==="strong"?"#3fb950":na.status==="moderate"?"#d29922":"#f85149";
+      mg.innerHTML+='<div class="metric"><div class="label">Network Block</div><div class="value">'+(na.max_block||"?")+'</div></div>';
+      mg.innerHTML+='<div class="metric"><div class="label">Agreement</div><div class="value" style="color:'+agCol+'">'+na.status.toUpperCase()+'</div></div>';
+      mg.innerHTML+='<div class="metric"><div class="label">Public Nodes</div><div class="value">'+na.aligned_nodes+'/'+na.total_nodes+' online</div></div>';
+      mg.innerHTML+='<div class="metric"><div class="label">Block Spread</div><div class="value" style="color:'+(na.block_spread>100?"#f85149":na.block_spread>10?"#d29922":"#3fb950")+'">'+na.block_spread+'</div></div>';
+    }
     if(d.decision){
       var dec=d.decision;
       var riskCol=dec.risk_level==="low"?"#3fb950":dec.risk_level==="medium"?"#d29922":"#f85149";
-      var statusCol=dec.status==="stable"?"#3fb950":dec.status==="recovering"?"#58a6ff":dec.status==="degraded"?"#d29922":"#f85149";
-      mg.innerHTML+='<div class="metric"><div class="label">Status</div><div class="value" style="color:'+statusCol+'">'+dec.status.toUpperCase()+'</div></div>';
-      mg.innerHTML+='<div class="metric"><div class="label">Risk</div><div class="value" style="color:'+riskCol+'">'+dec.risk_level.toUpperCase()+'</div></div>';
+      mg.innerHTML+='<div class="metric"><div class="label">Risk Level</div><div class="value" style="color:'+riskCol+'">'+dec.risk_level.toUpperCase()+'</div></div>';
       mg.innerHTML+='<div class="metric"><div class="label">Confidence</div><div class="value">'+(Math.round(dec.confidence*100))+'%</div></div>';
     }
-    if(d.scores){
-      var sc=d.scores;
-      mg.innerHTML+='<div class="metric"><div class="label">Net Health</div><div class="value">'+sc.network_health+'</div></div>';
-      mg.innerHTML+='<div class="metric"><div class="label">Stability</div><div class="value">'+sc.stability+'</div></div>';
-      mg.innerHTML+='<div class="metric"><div class="label">Partition Risk</div><div class="value">'+sc.partition_risk+'</div></div>';
-      mg.innerHTML+='<div class="metric"><div class="label">Data Confidence</div><div class="value">'+sc.data_confidence+'</div></div>';
-    }
-    mg.innerHTML+='<div class="metric"><div class="label">Cycle</div><div class="value">'+d.cycleCount+'</div></div>';
     mg.innerHTML+='<div class="metric"><div class="label">Active Incidents</div><div class="value">'+((d.activeIncidents&&d.activeIncidents.length)||0)+'</div></div>';
-    if(d.network_agreement){
-      var na=d.network_agreement;
-      mg.innerHTML+='<div class="metric"><div class="label">Public Nodes</div><div class="value">'+na.aligned_nodes+'/'+na.total_nodes+' aligned</div></div>';
-    }
 
     // Network agreement panel
     var agBox=document.getElementById("agreement-status");
