@@ -269,6 +269,102 @@ function getRecommendation(data) {
 }
 
 // Load incident counter from DB on startup
+function generateDecision(data, stalenessSeconds, signals) {
+  if (!data || !data.nodeReports) {
+    return { status: "uncertain", trend: "unknown", confidence: 0.0, risk_level: "high", reason: "No fleet data available", affected_components: ["data"], valid_until: new Date(Date.now() + 60000).toISOString(), last_updated: new Date().toISOString() };
+  }
+
+  var total = data.nodeReports.length;
+  var healthy = data.nodeReports.filter(function(n) { return n.status === "HEALTHY"; }).length;
+  var offline = data.nodeReports.filter(function(n) { return !n.online; }).length;
+  var blocks = data.nodeReports.map(function(n) { return n.blockHeight; }).filter(Boolean);
+  var blockSpread = blocks.length > 1 ? Math.max.apply(null, blocks) - Math.min.apply(null, blocks) : 0;
+  var criticalSignals = signals.filter ? signals.filter(function(s) { return s.severity === "critical"; }) : [];
+  var warningSignals = signals.filter ? signals.filter(function(s) { return s.severity === "warning"; }) : [];
+  var chainStall = criticalSignals.some(function(s) { return s.type === "chain_stall" || s.type === "block_divergence"; });
+
+  // Confidence: start at 1.0, subtract penalties
+  var confidence = 1.0;
+  if (stalenessSeconds > 300) confidence -= 0.3;
+  else if (stalenessSeconds > 60) confidence -= 0.1;
+  confidence -= (offline / total) * 0.4;
+  confidence -= criticalSignals.length * 0.15;
+  confidence -= warningSignals.length * 0.05;
+  if (blockSpread > 50) confidence -= 0.1;
+  confidence = Math.max(0.0, Math.min(1.0, Math.round(confidence * 100) / 100));
+
+  // Status
+  var status, risk_level, reason, affected = [];
+  if (chainStall) {
+    status = "unstable"; risk_level = "high";
+    reason = "Chain-level issue detected — no block progression";
+    affected = ["network", "chain"];
+  } else if (stalenessSeconds > 300) {
+    status = "uncertain"; risk_level = "medium";
+    reason = "Data is stale (" + Math.round(stalenessSeconds / 60) + " min) — observations may not reflect current state";
+    affected = ["data"];
+  } else if (offline >= Math.ceil(total * 0.5)) {
+    status = "unstable"; risk_level = "high";
+    reason = offline + "/" + total + " nodes offline — majority unreachable";
+    affected = ["network", "nodes"];
+  } else if (offline > 0 || criticalSignals.length > 0) {
+    status = "degraded"; risk_level = "medium";
+    reason = offline + " node(s) offline, " + criticalSignals.length + " critical signal(s)";
+    affected = ["nodes"];
+  } else if (warningSignals.length > 0 || blockSpread > 10) {
+    status = "degraded"; risk_level = "low";
+    reason = warningSignals.length + " warning signal(s), block spread " + blockSpread;
+    affected = ["nodes"];
+  } else if (healthy === total) {
+    status = "stable"; risk_level = "low";
+    reason = "All " + total + " nodes synced, zero active incidents, low divergence";
+    affected = [];
+  } else {
+    status = "recovering"; risk_level = "medium";
+    reason = healthy + "/" + total + " nodes healthy";
+    affected = ["nodes"];
+  }
+
+  // Valid for 2x the monitor interval (2 min)
+  var validUntil = new Date(Date.now() + 120000).toISOString();
+
+  return {
+    status: status,
+    risk_level: risk_level,
+    confidence: confidence,
+    reason: reason,
+    affected_components: affected,
+    valid_until: validUntil,
+    last_updated: new Date().toISOString()
+  };
+}
+
+function generateScores(data, stalenessSeconds, signals) {
+  if (!data || !data.nodeReports) return { network_health: 0, stability: 0, partition_risk: 100, data_confidence: 0 };
+
+  var total = data.nodeReports.length;
+  var healthy = data.nodeReports.filter(function(n) { return n.status === "HEALTHY"; }).length;
+  var offline = data.nodeReports.filter(function(n) { return !n.online; }).length;
+  var blocks = data.nodeReports.map(function(n) { return n.blockHeight; }).filter(Boolean);
+  var blockSpread = blocks.length > 1 ? Math.max.apply(null, blocks) - Math.min.apply(null, blocks) : 0;
+  var sideA = data.nodeReports.filter(function(n) { return n.side === "A" && n.online; }).length;
+  var sideB = data.nodeReports.filter(function(n) { return n.side === "B" && n.online; }).length;
+  var sideImbalance = Math.abs(sideA - sideB);
+  var criticalCount = signals.filter ? signals.filter(function(s) { return s.severity === "critical"; }).length : 0;
+
+  var network_health = Math.round((healthy / total) * 100);
+  var stability = Math.max(0, Math.round(100 - (blockSpread / 10) - (criticalCount * 15) - (offline * 10)));
+  var partition_risk = Math.min(100, Math.round((sideImbalance / Math.max(sideA, sideB, 1)) * 50 + (blockSpread > 50 ? 30 : 0)));
+  var data_confidence = Math.max(0, Math.round(100 - (stalenessSeconds > 300 ? 40 : stalenessSeconds > 60 ? 10 : 0) - (criticalCount * 10)));
+
+  return {
+    network_health: network_health,
+    stability: Math.min(100, stability),
+    partition_risk: partition_risk,
+    data_confidence: data_confidence
+  };
+}
+
 function generateSignals(data, stalenessSeconds) {
   var signals = [];
   if (!data || !data.nodeReports) {
@@ -1304,11 +1400,11 @@ function generatePrometheusMetrics(fleetData) {
         discoveredPeers: Object.keys(discoveredPeers).length,
         uptime: uptimeStats,
         signals: generateSignals(latestHealthData, getStaleness()),
+        decision: generateDecision(latestHealthData, getStaleness(), generateSignals(latestHealthData, getStaleness())),
+        scores: generateScores(latestHealthData, getStaleness(), generateSignals(latestHealthData, getStaleness())),
         activeIncidents: getActiveIncidentIds(),
         publicNodes: latestPublicNodes || [],
         instanceRole: INSTANCE_ROLE,
-        primaryOracleUrl: PRIMARY_ORACLE_URL || null,
-        primarySilentCycles: primarySilentCycles,
         dahrEnabled: dahrAvailable === true,
         writeBudget: canPublish(), // FIX BUG 6: expose budget status
       };
