@@ -2367,7 +2367,7 @@ async function main() {
 
       // --- Signal-based Telegram alerts ---
       try {
-        var currentSignals = generateSignals(data, getStaleness());
+        var currentSignals = generateSignals(data, 0);
         var alertableSignals = currentSignals.filter(function(s) { return s.severity === "warning" || s.severity === "critical"; });
         var now = Date.now();
         for (var sig of alertableSignals) {
