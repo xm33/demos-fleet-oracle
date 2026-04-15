@@ -301,7 +301,7 @@ function getRecommendation(data) {
     return { recommendation: "SAFE", safe_to_propose: true, confidence: "high", reason: "Network stable, no issues detected" };
   }
   if (healthy >= Math.ceil(total * 0.7) && offline < 3) {
-    return { recommendation: "CAUTION", safe_to_propose: true, confidence: "medium", reason: healthy + "/" + total + " healthy, minor issues present" };
+    return { recommendation: "CAUTION", safe_to_propose: true, confidence: "medium", reason: "Network stable, minor observations present" };
   }
   return { recommendation: "UNSAFE", safe_to_propose: false, confidence: "high", reason: healthy + "/" + total + " healthy, significant issues detected" };
 }
@@ -1793,6 +1793,7 @@ h1{color:#58a6ff;margin-bottom:4px;font-size:1.4em}
       <tbody id="sla-body"></tbody></table>
     </div>
     <div class="chart-box"><h2>Block height (last 24h)</h2><canvas id="blk-chart" style="width:100%;height:120px;display:block"></canvas></div>
+    <div class="incidents" style="margin-top:16px"><h2>Fleet Incidents</h2><div id="fleet-inc-list">Loading...</div></div>
   </div>
 </details>
 
@@ -2008,17 +2009,36 @@ async function refresh(){
   }catch(e){}
   try{
     var ir=await fetch("/incidents?limit=10");var id=await ir.json();
+    var FLEET_NODES = ["n1","n2","n3","n4","n5","n6","m1","m3","n9"];
+    function isFleetIncident(inc) { return inc.affectedNodes && inc.affectedNodes.length > 0 && inc.affectedNodes.every(function(n){ return FLEET_NODES.includes(n); }); }
+    var publicIncs = id.incidents ? id.incidents.filter(function(i){ return !isFleetIncident(i); }) : [];
+    var fleetIncs = id.incidents ? id.incidents.filter(function(i){ return isFleetIncident(i); }) : [];
     var il=document.getElementById("inc-list");
-    if(!id.incidents||id.incidents.length===0){il.innerHTML='<div style="color:#8b949e">No incidents recorded</div>';return;}
-    il.innerHTML="";
-    var MAX_INC=5;var incShown=0;
-    id.incidents.forEach(function(inc){
-      if(incShown>=MAX_INC)return;
-      il.innerHTML+='<div class="inc"><span class="id">'+inc.id+'</span> <span class="sev '+inc.severity+'">'+inc.severity.toUpperCase()+'</span> '+inc.description+' <span style="color:#8b949e">'+(inc.status==="active"?"\u23F3 active":"\u2705 resolved in "+(inc.duration_seconds||"?")+"s")+'</span></div>';
-      incShown++;
-    });
-    if(id.incidents.length>MAX_INC){il.innerHTML+='<div style="margin-top:8px;font-size:0.82em"><a href="/incidents" style="color:#58a6ff">View all '+id.incidents.length+' incidents →</a></div>';}
-  }catch(e){}
+    if(!publicIncs||publicIncs.length===0){il.innerHTML='<div style="color:#8b949e;font-size:0.85em">No network incidents recorded</div>';}
+    else {
+      il.innerHTML="";
+      var MAX_INC=5;var incShown=0;
+      publicIncs.forEach(function(inc){
+        if(incShown>=MAX_INC)return;
+        il.innerHTML+='<div class="inc"><span class="id">'+inc.id+'</span> <span class="sev '+inc.severity+'">'+inc.severity.toUpperCase()+'</span> '+inc.description+' <span style="color:#8b949e">'+( inc.status==="active"?"\u23F3 active":"\u2705 resolved in "+(inc.duration_seconds||"?")+"s")+'</span></div>';
+        incShown++;
+      });
+      if(publicIncs.length>MAX_INC){il.innerHTML+='<div style="margin-top:8px;font-size:0.82em"><a href="/incidents" style="color:#58a6ff">View all '+publicIncs.length+' network incidents \u2192</a></div>';}
+    }
+    var fil=document.getElementById("fleet-inc-list");
+    if(fil){
+      if(!fleetIncs||fleetIncs.length===0){fil.innerHTML='<div style="color:#8b949e;font-size:0.85em">No fleet incidents recorded</div>';}
+      else {
+        fil.innerHTML="";
+        var fincShown=0;
+        fleetIncs.forEach(function(inc){
+          if(fincShown>=5)return;
+          fil.innerHTML+='<div class="inc"><span class="id">'+inc.id+'</span> <span class="sev '+inc.severity+'">'+inc.severity.toUpperCase()+'</span> '+inc.description+' <span style="color:#8b949e">'+( inc.status==="active"?"\u23F3 active":"\u2705 resolved in "+(inc.duration_seconds||"?")+"s")+'</span></div>';
+          fincShown++;
+        });
+        if(fleetIncs.length>5){fil.innerHTML+='<div style="margin-top:8px;font-size:0.82em"><a href="/incidents" style="color:#58a6ff">View all \u2192</a></div>';}
+      }
+    }
 }
 refresh();setInterval(refresh,20000);
 </script></body></html>`;
