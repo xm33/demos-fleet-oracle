@@ -636,7 +636,7 @@ async function perceive() {
     if (fleetUp[name] === false) issues.push("EXPORTER_DOWN");
 
     var status = issues.length > 0 ? "UNHEALTHY" : "HEALTHY";
-    nodeReports.push({ name: name, side: expected.side, status: status, issues: issues, blockHeight: blockHeight, online: online, ready: ready, syncOk: syncOk, identityMatch: identityMatch });
+    nodeReports.push({ name: name, status: status, issues: issues, blockHeight: blockHeight, online: online, ready: ready, syncOk: syncOk, identityMatch: identityMatch });
     if (issues.length > 0) problems.push({ name: name, issues: issues.slice() });
 
     var icon = status === "HEALTHY" ? "OK" : "!!";
@@ -1587,7 +1587,7 @@ h1{color:#58a6ff;margin-bottom:4px;font-size:1.4em}
 <div class="rec-box"><div class="rec" id="rec">—</div><div class="reason" id="rec-reason">—</div></div>
 <div class="grid" id="nodes"></div>
 <div class="metrics" id="metrics"></div>
-<div id="signals-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px"><h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Network signals</h2><div id="signals-list">Loading...</div></div><div id="sentinel-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px"><h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">🛡️ Sentinel v1</h2><div id="sentinel-status">Loading...</div></div><div class="public-nodes" id="pub-nodes" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px"><h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Public network nodes</h2><div id="pub-list">Loading...</div></div><div id="rep-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px"><h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Reputation scores (24h)</h2><div id="rep-list">Loading...</div></div><div class="sla"><h2>Node SLA — uptime</h2><table><thead><tr><th>Node</th><th>Side</th><th>Block</th><th>Uptime</th><th></th></tr></thead><tbody id="sla-body"></tbody></table></div>
+<div id="signals-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px"><h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Network signals</h2><div id="signals-list">Loading...</div></div><div id="sentinel-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px"><h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">🛡️ Sentinel v1</h2><div id="sentinel-status">Loading...</div></div><div class="public-nodes" id="pub-nodes" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px"><h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Public network nodes</h2><div id="pub-list">Loading...</div></div><div id="rep-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px"><h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">Reputation scores (24h)</h2><div id="rep-list">Loading...</div></div><div class="sla"><h2>Node SLA — uptime</h2><table><thead><tr><th>Node</th><th>Block</th><th>Uptime</th><th></th></tr></thead><tbody id="sla-body"></tbody></table></div>
 <div class="chart-box"><h2>Block height (last 24h)</h2><canvas id="blk-chart" style="width:100%;height:120px;display:block"></canvas></div>
 <div class="incidents"><h2>Recent Incidents</h2><div id="inc-list">Loading...</div></div>
 <div class="footer">Demos Fleet Oracle v6.8 &bull; ${INSTANCE_ROLE.toUpperCase()} &bull; Auto-refresh 20s &bull; <a href="/health" style="color:#58a6ff">/health</a> &bull; <a href="/incidents" style="color:#58a6ff">/incidents</a> &bull; <a href="https://github.com/xm33/demos-fleet-oracle" style="color:#58a6ff">GitHub</a></div>
@@ -1639,6 +1639,21 @@ async function refresh(){
     var mg=document.getElementById("metrics");mg.innerHTML="";
     mg.innerHTML+='<div class="metric"><div class="label">Block Height</div><div class="value">'+((d.fleet&&d.fleet.block)||"?")+'</div></div>';
     mg.innerHTML+='<div class="metric"><div class="label">TPS</div><div class="value">'+((d.fleet&&d.fleet.tps)||"0")+'</div></div>';
+    if(d.decision){
+      var dec=d.decision;
+      var riskCol=dec.risk_level==="low"?"#3fb950":dec.risk_level==="medium"?"#d29922":"#f85149";
+      var statusCol=dec.status==="stable"?"#3fb950":dec.status==="recovering"?"#58a6ff":dec.status==="degraded"?"#d29922":"#f85149";
+      mg.innerHTML+='<div class="metric"><div class="label">Status</div><div class="value" style="color:'+statusCol+'">'+dec.status.toUpperCase()+'</div></div>';
+      mg.innerHTML+='<div class="metric"><div class="label">Risk</div><div class="value" style="color:'+riskCol+'">'+dec.risk_level.toUpperCase()+'</div></div>';
+      mg.innerHTML+='<div class="metric"><div class="label">Confidence</div><div class="value">'+(Math.round(dec.confidence*100))+'%</div></div>';
+    }
+    if(d.scores){
+      var sc=d.scores;
+      mg.innerHTML+='<div class="metric"><div class="label">Net Health</div><div class="value">'+sc.network_health+'</div></div>';
+      mg.innerHTML+='<div class="metric"><div class="label">Stability</div><div class="value">'+sc.stability+'</div></div>';
+      mg.innerHTML+='<div class="metric"><div class="label">Partition Risk</div><div class="value">'+sc.partition_risk+'</div></div>';
+      mg.innerHTML+='<div class="metric"><div class="label">Data Confidence</div><div class="value">'+sc.data_confidence+'</div></div>';
+    }
     mg.innerHTML+='<div class="metric"><div class="label">Cycle</div><div class="value">'+d.cycleCount+'</div></div>';
     mg.innerHTML+='<div class="metric"><div class="label">Active Incidents</div><div class="value">'+((d.activeIncidents&&d.activeIncidents.length)||0)+'</div></div>';
     var sb=document.getElementById("sla-body");sb.innerHTML="";
@@ -1649,7 +1664,7 @@ async function refresh(){
       var pctStr=pct!==null?pct+"%":"—";
       var fillCls=pct===null?"":pct>=95?"":pct>=80?" warn":" bad";
       var bar=pct!==null?'<div class="uptime-bar"><div class="uptime-fill'+fillCls+'" style="width:'+pct+'%"></div></div>':'<div class="uptime-bar"></div>';
-      sb.innerHTML+='<tr><td><b>'+n.name+'</b></td><td>'+n.side+'</td><td>'+(n.blockHeight||"?")+'</td><td>'+pctStr+'</td><td style="width:120px">'+bar+'</td></tr>';
+      sb.innerHTML+='<tr><td><b>'+n.name+'</b></td><td>'+(n.blockHeight||"?")+'</td><td>'+pctStr+'</td><td style="width:120px">'+bar+'</td></tr>';
     });}
   }catch(e){document.getElementById("updated").textContent="Error: "+e.message;}
   try{
@@ -2395,7 +2410,7 @@ async function pollTelegram() {
               lines.push("Healthy: " + healthy + "/" + nodes.length);
               lines.push("Cycle: " + (d.cycleCount||0));
               nodes.forEach(function(n){
-                lines.push((n.status==="HEALTHY"?"\u2705":"\u274c") + " " + n.name + " (" + n.side + ") block " + (n.blockHeight||"?"));
+                lines.push((n.status==="HEALTHY"?"\u2705":"\u274c") + " " + n.name + " block " + (n.blockHeight||"?"));
               });
               reply = lines.join(NL);
             } catch(e) { reply = "Error fetching status: " + e.message; }
