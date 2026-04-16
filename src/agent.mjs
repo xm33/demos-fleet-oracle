@@ -211,6 +211,9 @@ const PUBLIC_NODES = {
     joined_at: "2026-04-15"
   },
 };
+var PUBLIC_NODE_IDENTITIES = {};
+for (var _pn in PUBLIC_NODES) { PUBLIC_NODE_IDENTITIES[PUBLIC_NODES[_pn].identity] = _pn; }
+
 const BLOCK_LAG_THRESHOLD = 3;
 const STALE_SECONDS_THRESHOLD = 120;
 const PROBE_TIMEOUT_MS = 5000;
@@ -1443,8 +1446,9 @@ function discoverValidators(infoData) {
     var identity = peer.identity;
     if (!identity) continue;
 
-    // Check if this is a known fleet node
+    // Check if this is a known fleet or public node
     if (IDENTITY_TO_NAME[identity]) continue;
+    if (PUBLIC_NODE_IDENTITIES[identity]) continue;
 
     // Unknown peer — track it
     if (!discoveredPeers[identity]) {
