@@ -541,6 +541,27 @@ function generateScores(data, stalenessSeconds, signals) {
 }
 
 // === Layer 2: Canonical truth model ===
+/**
+ * Canonical State Model (v1.0)
+ *
+ * The Oracle separates four independent concepts:
+ *
+ * - status: current network operability (is the network usable right now?)
+ * - risk: current resilience / safety margin (how fragile is the situation?)
+ * - confidence: certainty of the assessment (how reliable is the data?)
+ * - incidents: active unresolved issues (what is currently broken?)
+ *
+ * Important distinctions:
+ *
+ * - Status MUST NOT degrade solely due to reduced observer coverage.
+ *   Node loss affects risk, not status, unless operability is impacted.
+ *
+ * - Risk captures reduced redundancy even when status is stable.
+ *
+ * - Confidence reflects data quality, not network health.
+ *
+ * - Incidents represent active problems only, not historical events.
+ */
 function computeCanonicalState() {
   var publicNodes = latestPublicNodes || [];
   var stalenessSeconds = lastCycleAt ? Math.round((Date.now() - lastCycleAt) / 1000) : 0;
@@ -593,12 +614,16 @@ function computeCanonicalState() {
     else if (sev === "info" && max_incident_severity === "none") max_incident_severity = "info";
   }
 
+  // Status = network operability (NOT observer coverage)
+  // Do not degrade status only because some monitored nodes are offline
   var status;
   if (data_quality === "insufficient") status = "unknown";
   else if (max_incident_severity === "critical" || agreement.state === "weak" || (pubTotal > 0 && pubReachable <= Math.floor(pubTotal * 0.5))) status = "unstable";
   else if (max_incident_severity === "warning" || agreement.state === "moderate") status = "degraded";
   else status = "stable";
 
+  // Risk = resilience / safety margin
+  // Includes reduced node redundancy even when status is stable
   var risk;
   if (status === "unknown") risk = "elevated";
   else if (status === "unstable" || max_incident_severity === "critical" || agreement.state === "weak") risk = "high";
