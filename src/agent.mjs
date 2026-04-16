@@ -122,10 +122,10 @@ var DOCS_HTML = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Demos N
 '<p class="sub">Public network intelligence for the Demos ecosystem. Monitors public validators, tracks network agreement, and publishes attested health data on-chain via SuperColony.<br>' +
 'Oracle wallet: <code>' + AGENT_WALLET + '</code> &middot; v6.9 &middot; <a href="/dashboard" style="color:#22d3ee">Dashboard</a></p>' +
 '<h2>Network</h2>' +
-'<div class="e"><b>GET /health</b><span>Full network snapshot — decision, scores, network_agreement, signals_grouped, public nodes, incidents</span></div>' +
-'<div class="e"><b>GET /organism</b><span>Lightweight machine-readable network state — optimized for agent consumption</span></div>' +
+'<div class="e"><b>GET /health</b><span>Full network snapshot — canonical truth model, agreement, signals, public nodes, reference layer</span></div>' +
+'<div class="e"><b>GET /organism</b><span>Compact public truth feed — 12 canonical fields, zero fleet data, optimized for agents</span></div>' +
 '<div class="e"><b>GET /signals</b><span>Current network signals grouped by severity (critical / warning / info)</span></div>' +
-'<div class="e"><b>GET /incidents</b><span>Network incident log with severity, duration, and affected components</span></div>' +
+'<div class="e"><b>GET /incidents</b><span>Incident log with scope filtering — public (default), fleet, or all</span></div>' +
 '<h2>Validators</h2>' +
 '<div class="e"><b>GET /peers</b><span>Discovered validators — identity, connection, block, first seen</span></div>' +
 '<div class="e"><b>GET /reputation</b><span>Per-node reputation scores (0-100) over 24h window</span></div>' +
@@ -136,9 +136,9 @@ var DOCS_HTML = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Demos N
 '<h2>Integration</h2>' +
 '<div class="e"><b>GET /federate</b><span>Prometheus metrics endpoint for scraping</span></div>' +
 '<div class="e"><b>GET /federate/config</b><span>Prometheus scrape_config snippet</span></div>' +
-'<div class="e"><b>GET /badge</b><span>SVG network status badge — embeddable in READMEs and dashboards</span></div>' +
+'<div class="e"><b>GET /badge</b><span>SVG status badge showing canonical network status (STABLE/DEGRADED/UNSTABLE)</span></div>' +
 '<div class="e"><b>GET /version</b><span>Running agent version vs latest GitHub commit</span></div>' +
-'<footer>All endpoints return JSON unless noted. Monitoring interval: 1 min. Publishing interval: 20 min. Oracle is strictly watch-only — observe, interpret, summarize risk.</footer></body></html>';
+'<footer>All endpoints return JSON unless noted. Monitoring interval: 20s. Publishing interval: 20 min. API version: 1.0. Oracle is strictly watch-only — observe, interpret, summarize risk.</footer></body></html>';
 
 // FIX BUG 6: Write budget constants (SuperColony rate limits)
 const DAILY_PUBLISH_LIMIT = 15;
@@ -1735,6 +1735,7 @@ function generatePrometheusMetrics(fleetData) {
     } else if (req.url.indexOf("/incidents") === 0) {
       var incParams = new URLSearchParams(req.url.split("?")[1] || "");
       var incStatus = incParams.get("status") || null;
+      var incScope = incParams.get("scope") || "public";
       var incLimit = parseInt(incParams.get("limit") || "50", 10);
       try {
         var incQuery = "SELECT * FROM incidents";
@@ -1744,21 +1745,26 @@ function generatePrometheusMetrics(fleetData) {
         incArgs.push(incLimit);
         var incRows = sharedDb.prepare(incQuery).all(...incArgs);
         var incResults = incRows.map(function(r) {
+          var nodes = JSON.parse(r.affected_nodes || "[]");
+          var isFleet = (r.description && (r.description.indexOf("Fleet reference") === 0 || r.description === "Chain-level issue detected")) || (nodes.length > 0 && nodes.every(function(n) { return FLEET_NODE_NAMES.includes(n); }));
           return {
-            id: r.id, status: r.status, severity: r.severity,
+            id: r.id, status: r.status, severity: r.severity, scope: isFleet ? "fleet" : "public",
             startedAt: r.started_at, resolvedAt: r.resolved_at,
             durationSeconds: r.duration_seconds,
-            affectedNodes: JSON.parse(r.affected_nodes || "[]"),
+            affectedNodes: nodes,
             description: r.description,
             detectedBlock: r.detected_block, resolvedBlock: r.resolved_block,
             alerts: JSON.parse(r.alerts || "[]")
           };
         });
+        if (incScope === "public") incResults = incResults.filter(function(i) { return i.scope === "public"; });
+        else if (incScope === "fleet") incResults = incResults.filter(function(i) { return i.scope === "fleet"; });
+        var activeCount = incScope === "public" ? getPublicActiveIncidentIds().length : incScope === "fleet" ? Object.keys(activeIncidents).length - getPublicActiveIncidentIds().length : Object.keys(activeIncidents).length;
         res.writeHead(200);
-        res.end(JSON.stringify({ total: incResults.length, active: Object.keys(activeIncidents).length, incidents: incResults }, null, 2));
+        res.end(JSON.stringify({ scope: incScope, total: incResults.length, active: activeCount, incidents: incResults }, null, 2));
       } catch(incErr) {
         res.writeHead(200);
-        res.end(JSON.stringify({ total: 0, active: 0, incidents: [], error: incErr.message }, null, 2));
+        res.end(JSON.stringify({ scope: incScope || "public", total: 0, active: 0, incidents: [], error: incErr.message }, null, 2));
       }
     } else if (req.url === "/federate" || req.url === "/metrics") {
       var fleetData = {
@@ -1804,16 +1810,18 @@ function generatePrometheusMetrics(fleetData) {
       res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
       res.end(JSON.stringify({
         agent: "Demos Network Oracle",
-        version: "6.8",
+        version: "6.9",
+        api_version: "1.0",
+        status: computeCanonicalState().status,
         uptimeSeconds: Math.round(process.uptime()),
-        lastCycleAt: latestHealthData ? latestHealthData.timestamp : null,
+        lastCycleAt: lastCycleAt || null,
         lastPublishAt: lastPublishAt,
         cycleCount: cycleCount,
         writeBudget: { hourly: selfBudget.hourly, maxHourly: HOURLY_PUBLISH_LIMIT, daily: selfBudget.daily, maxDaily: DAILY_PUBLISH_LIMIT, ok: selfBudget.ok },
         wallet: AGENT_WALLET,
         activeRpc: activeRpcUrl,
         demBalance: lastKnownBalance,
-        endpoints: ["/health", "/self", "/docs", "/dashboard", "/reputation", "/peers", "/history", "/history/export", "/federate", "/badge", "/marketplace", "/consensus", "/incidents"]
+        endpoints: ["/organism", "/health", "/dashboard", "/incidents", "/peers", "/reputation", "/sentinel", "/history", "/history/export", "/federate", "/federate/config", "/badge", "/version", "/docs", "/self"]
       }, null, 2));
     } else if (req.url === "/organism") {
       var canonical = computeCanonicalState();
@@ -1840,14 +1848,17 @@ function generatePrometheusMetrics(fleetData) {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Access-Control-Allow-Origin": "*" });
       res.end(DOCS_HTML);
     } else if (req.url === "/badge") {
-      var bHealthy = latestHealthData && latestHealthData.nodeReports ? latestHealthData.nodeReports.filter(function(n) { return n.status === "HEALTHY"; }).length : 0;
-      var bColor = bHealthy === FLEET_SIZE ? "#4c1" : bHealthy >= 4 ? "#dfb317" : "#e05d44";
-      var bLabel = bHealthy + "/" + FLEET_SIZE;
-      var bSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="106" height="20" role="img">' +
-        '<rect width="46" height="20" fill="#555" rx="3"/><rect x="46" width="60" height="20" fill="' + bColor + '" rx="3"/>' +
+      var bCanonical = computeCanonicalState();
+      var bStatus = bCanonical.status;
+      var bColor = bStatus === "stable" ? "#4c1" : bStatus === "degraded" ? "#dfb317" : bStatus === "unstable" ? "#e05d44" : "#999";
+      var bIcon = bStatus === "stable" ? "\u2713" : bStatus === "unknown" ? "?" : "\u26a0";
+      var bLabel = bStatus.toUpperCase();
+      var bWidth = bLabel.length * 8 + 20;
+      var bSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + (46 + bWidth) + '" height="20" role="img">' +
+        '<rect width="46" height="20" fill="#555" rx="3"/><rect x="46" width="' + bWidth + '" height="20" fill="' + bColor + '" rx="3"/>' +
         '<rect x="46" width="4" height="20" fill="' + bColor + '"/>' +
-        '<text x="23" y="14" fill="#fff" text-anchor="middle" font-family="Verdana,sans-serif" font-size="11">Fleet</text>' +
-        '<text x="76" y="14" fill="#fff" text-anchor="middle" font-family="Verdana,sans-serif" font-size="11">' + bLabel + ' ' + (bHealthy === FLEET_SIZE ? "\u2713" : "\u26a0") + '</text></svg>';
+        '<text x="23" y="14" fill="#fff" text-anchor="middle" font-family="Verdana,sans-serif" font-size="11">Oracle</text>' +
+        '<text x="' + (46 + bWidth/2) + '" y="14" fill="#fff" text-anchor="middle" font-family="Verdana,sans-serif" font-size="11">' + bLabel + ' ' + bIcon + '</text></svg>';
       res.writeHead(200, { "Content-Type": "image/svg+xml", "Cache-Control": "no-cache", "Access-Control-Allow-Origin": "*" });
       res.end(bSvg);
     } else if (req.url === "/sentinel") {
