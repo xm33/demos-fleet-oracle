@@ -603,7 +603,41 @@ function computeCanonicalState() {
   else if (status === "degraded" || max_incident_severity === "warning" || confidence === "uncertain" || agreement.state === "moderate") risk = "elevated";
   else risk = "low";
 
+  // M4: Trend computation from public node history
   var trend = "unknown";
+  if (data_quality === "sufficient" && sharedDb) {
+    try {
+      var histRows = sharedDb.query("SELECT nodes_reachable, nodes_total, agreement_state, block_spread FROM public_node_history ORDER BY ts DESC LIMIT 15 OFFSET 1").all();
+      if (histRows.length >= 10) {
+        // Map agreement to numeric: strong=3, moderate=2, weak=1, unknown=0
+        function agNum(s) { return s === "strong" ? 3 : s === "moderate" ? 2 : s === "weak" ? 1 : 0; }
+        var avgReachable = 0, avgAgreement = 0, avgSpread = 0;
+        for (var ti = 0; ti < histRows.length; ti++) {
+          avgReachable += histRows[ti].nodes_reachable;
+          avgAgreement += agNum(histRows[ti].agreement_state);
+          avgSpread += (histRows[ti].block_spread || 0);
+        }
+        avgReachable /= histRows.length;
+        avgAgreement /= histRows.length;
+        avgSpread /= histRows.length;
+        var curAg = agNum(agreement.state);
+        var curSpread = agreement.block_spread || 0;
+        var improving = 0, worsening = 0;
+        // Signal 1: nodes reachable
+        if (pubReachable > avgReachable + 0.3) improving++;
+        else if (pubReachable < avgReachable - 0.3) worsening++;
+        // Signal 2: agreement strength
+        if (curAg > avgAgreement + 0.3) improving++;
+        else if (curAg < avgAgreement - 0.3) worsening++;
+        // Signal 3: block spread (lower = better)
+        if (curSpread < avgSpread - 5) improving++;
+        else if (curSpread > avgSpread + 5) worsening++;
+        if (improving >= 2 && worsening === 0) trend = "improving";
+        else if (worsening >= 2 && improving === 0) trend = "worsening";
+        else trend = "stable";
+      }
+    } catch(trendErr) { trend = "unknown"; }
+  }
 
   var summary;
   if (status === "unknown") summary = "Insufficient data — fewer than 2 public nodes reachable";
