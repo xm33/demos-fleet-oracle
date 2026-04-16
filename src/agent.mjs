@@ -332,7 +332,7 @@ function getRecommendation(data) {
 
 // Load incident counter from DB on startup
 function getValidatorGrowth() {
-  if (!sharedDb) return { today: 0, week: 0, total: 0 };
+  if (!sharedDb) return { today: 0, week: 0, total: 0, online: 0, synced: 0, monitored: Object.keys(PUBLIC_NODES).length };
   try {
     var now = Date.now();
     var dayAgo = now - 86400000;
@@ -340,8 +340,24 @@ function getValidatorGrowth() {
     var total = sharedDb.query("SELECT COUNT(*) as c FROM validator_discoveries").get().c;
     var today = sharedDb.query("SELECT COUNT(*) as c FROM validator_discoveries WHERE first_seen > ?").get(dayAgo).c;
     var week = sharedDb.query("SELECT COUNT(*) as c FROM validator_discoveries WHERE first_seen > ?").get(weekAgo).c;
-    return { today: today, week: week, total: total };
-  } catch(e) { return { today: 0, week: 0, total: 0 }; }
+
+    // Live state from discovered peers
+    var peers = Object.values(discoveredPeers || {});
+    var onlineCount = peers.filter(function(p) { return p.online; }).length;
+
+    // Synced = within 100 blocks of public network head
+    var pubOnline = (latestPublicNodes || []).filter(function(n) { return n.ok && n.block; });
+    var networkHead = 0;
+    if (pubOnline.length > 0) {
+      var pubBlocks = pubOnline.map(function(n) { return n.block; });
+      networkHead = Math.max.apply(null, pubBlocks);
+    }
+    var syncedCount = peers.filter(function(p) { return p.online && p.block && networkHead > 0 && (networkHead - p.block) < 100; }).length;
+
+    var monitored = Object.keys(PUBLIC_NODES).length;
+
+    return { today: today, week: week, total: total, online: onlineCount, synced: syncedCount, monitored: monitored };
+  } catch(e) { return { today: 0, week: 0, total: 0, online: 0, synced: 0, monitored: Object.keys(PUBLIC_NODES).length }; }
 }
 
 function generateNetworkAgreement(fleetData, publicNodes) {
@@ -2028,10 +2044,13 @@ async function refresh(){
       if(d.validator_growth){
         var vg=d.validator_growth;
         html+='<div style="margin-top:12px;padding-top:10px;border-top:1px solid #21262d;display:flex;gap:16px;flex-wrap:wrap">';
-        html+='<span style="font-size:0.8em;color:#8b949e">Validator discovery: </span>';
+        html+='<span style="font-size:0.8em;color:#8b949e">Validators: </span>';
         html+='<span style="font-size:0.8em;color:#c9d1d9">+'+vg.today+' today</span>';
         html+='<span style="font-size:0.8em;color:#c9d1d9">+'+vg.week+' this week</span>';
-        html+='<span style="font-size:0.8em;color:#58a6ff">'+vg.total+' total discovered</span>';
+        html+='<span style="font-size:0.8em;color:#58a6ff">'+vg.total+' discovered</span>';
+        html+='<span style="font-size:0.8em;color:#3fb950">'+vg.online+' online</span>';
+        html+='<span style="font-size:0.8em;color:'+(vg.synced===vg.online?'#3fb950':'#d29922')+'">'+vg.synced+' synced</span>';
+        html+='<span style="font-size:0.8em;color:#58a6ff">'+vg.monitored+' monitored</span>';
         html+='</div>';
       }
       agBox.innerHTML=html;
