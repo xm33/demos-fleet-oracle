@@ -486,6 +486,85 @@ function generateScores(data, stalenessSeconds, signals) {
   };
 }
 
+// === Layer 2: Canonical truth model ===
+function computeCanonicalState() {
+  var publicNodes = latestPublicNodes || [];
+  var stalenessSeconds = lastCycleAt ? Math.round((Date.now() - lastCycleAt) / 1000) : 0;
+  var pubOnline = publicNodes.filter(function(n) { return n.ok; });
+  var pubTotal = publicNodes.length;
+  var pubReachable = pubOnline.length;
+
+  var data_quality = "sufficient";
+  if (pubReachable < 2) data_quality = "insufficient";
+  if (stalenessSeconds > 300) data_quality = "insufficient";
+
+  var agreement;
+  if (pubReachable < 2) {
+    agreement = { state: "unknown", aligned_nodes: pubReachable, total_nodes: pubTotal, median_block: null, block_spread: 0 };
+  } else {
+    var blocks = pubOnline.map(function(n) { return n.block; }).filter(Boolean).sort(function(a, b) { return a - b; });
+    if (blocks.length < 2) {
+      agreement = { state: "unknown", aligned_nodes: blocks.length, total_nodes: pubTotal, median_block: blocks[0] || null, block_spread: 0 };
+    } else {
+      var medianBlock = blocks[Math.floor(blocks.length / 2)];
+      var blockSpread = blocks[blocks.length - 1] - blocks[0];
+      var alignedCount = 0;
+      for (var ai = 0; ai < blocks.length; ai++) { if (Math.abs(blocks[ai] - medianBlock) <= 10) alignedCount++; }
+      var agState;
+      if (alignedCount === blocks.length && blockSpread <= 2) agState = "strong";
+      else if (alignedCount >= Math.ceil(blocks.length * 0.7)) agState = "moderate";
+      else agState = "weak";
+      agreement = { state: agState, aligned_nodes: alignedCount, total_nodes: pubTotal, median_block: medianBlock, block_spread: blockSpread };
+    }
+  }
+
+  var confidence = "clear";
+  if (data_quality === "insufficient") { confidence = "uncertain"; }
+  else if (pubReachable >= 2) {
+    var pubBlocks = pubOnline.map(function(n) { return n.block; }).filter(Boolean);
+    if (pubBlocks.length >= 2 && Math.max.apply(null, pubBlocks) - Math.min.apply(null, pubBlocks) > 50) confidence = "uncertain";
+  }
+
+  var publicActiveIncs = Object.values(activeIncidents).filter(function(inc) {
+    if (inc.description && (inc.description.indexOf("Fleet reference") === 0 || inc.description === "Chain-level issue detected")) return false;
+    if (inc.affectedNodes && inc.affectedNodes.every(function(n) { return FLEET_NODE_NAMES.includes(n); })) return false;
+    return true;
+  });
+  var publicIncidentCount = publicActiveIncs.length;
+  var max_incident_severity = "none";
+  for (var mi = 0; mi < publicActiveIncs.length; mi++) {
+    var sev = publicActiveIncs[mi].severity;
+    if (sev === "critical") { max_incident_severity = "critical"; break; }
+    if (sev === "warning") max_incident_severity = "warning";
+    else if (sev === "info" && max_incident_severity === "none") max_incident_severity = "info";
+  }
+
+  var status;
+  if (data_quality === "insufficient") status = "unknown";
+  else if (max_incident_severity === "critical" || agreement.state === "weak" || (pubTotal > 0 && pubReachable <= Math.floor(pubTotal * 0.5))) status = "unstable";
+  else if (max_incident_severity === "warning" || agreement.state === "moderate" || (pubTotal > 2 && pubTotal - pubReachable > 1)) status = "degraded";
+  else status = "stable";
+
+  var risk;
+  if (status === "unknown") risk = "elevated";
+  else if (status === "unstable" || max_incident_severity === "critical" || agreement.state === "weak") risk = "high";
+  else if (status === "degraded" || max_incident_severity === "warning" || confidence === "uncertain" || agreement.state === "moderate") risk = "elevated";
+  else risk = "low";
+
+  var trend = "unknown";
+
+  var summary;
+  if (status === "unknown") summary = "Insufficient data — fewer than 2 public nodes reachable";
+  else if (status === "stable" && publicIncidentCount === 0) summary = pubReachable + "/" + pubTotal + " public nodes synced, no active incidents";
+  else if (status === "degraded") {
+    var offCount = pubTotal - pubReachable;
+    summary = offCount > 0 ? offCount + " of " + pubTotal + " public node(s) offline, agreement " + agreement.state : publicIncidentCount + " active incident(s), agreement " + agreement.state;
+  } else if (status === "unstable") summary = "Network unstable — " + publicIncidentCount + " incident(s), agreement " + agreement.state;
+  else summary = pubReachable + "/" + pubTotal + " public nodes online";
+
+  return { status: status, trend: trend, risk: risk, data_quality: data_quality, confidence: confidence, agreement: agreement, active_incidents: publicIncidentCount, max_incident_severity: max_incident_severity, summary: summary, staleness_seconds: stalenessSeconds, last_updated: new Date().toISOString(), api_version: "1.0" };
+}
+
 function generateSignals(data, stalenessSeconds) {
   var signals = [];
   if (!data || !data.nodeReports) {
@@ -1679,31 +1758,20 @@ function generatePrometheusMetrics(fleetData) {
         endpoints: ["/health", "/self", "/docs", "/dashboard", "/reputation", "/peers", "/history", "/history/export", "/federate", "/badge", "/marketplace", "/consensus", "/incidents"]
       }, null, 2));
     } else if (req.url === "/organism") {
-      var sigs = generateSignals(latestHealthData, getStaleness());
-      var dec = generateDecision(latestHealthData, getStaleness(), sigs);
-      var sc = generateScores(latestHealthData, getStaleness(), sigs);
-      var criticalSigs = sigs.filter(function(s) { return s.severity === "critical"; });
-      var unstableNodes = latestHealthData ? latestHealthData.nodeReports.filter(function(n) { return n.status !== "HEALTHY"; }).map(function(n) { return n.name; }) : [];
-      var netAgree = generateNetworkAgreement(latestHealthData, latestPublicNodes);
+      var canonical = computeCanonicalState();
       var organism = {
-        network_status: dec.status,
-        trend: "stable",
-        network_health: sc.network_health,
-        stability: sc.stability,
-        risk_level: dec.risk_level,
-        confidence: dec.confidence,
-        data_quality: sc.data_confidence >= 90 ? "high" : sc.data_confidence >= 60 ? "medium" : "low",
-        active_incidents: getPublicActiveIncidentIds().length,
-        critical_signals: criticalSigs.length,
-        unstable_nodes: unstableNodes,
-        fleet_size: FLEET_SIZE,
-        fleet_healthy: latestHealthData ? latestHealthData.nodeReports.filter(function(n) { return n.status === "HEALTHY"; }).length : 0,
-        network_agreement: netAgree.status,
-        public_nodes_total: netAgree.total_nodes,
-        public_nodes_aligned: netAgree.aligned_nodes,
-        public_block_spread: netAgree.block_spread,
-        valid_until: dec.valid_until,
-        last_updated: dec.last_updated
+        status: canonical.status,
+        trend: canonical.trend,
+        risk: canonical.risk,
+        data_quality: canonical.data_quality,
+        confidence: canonical.confidence,
+        agreement: canonical.agreement.state,
+        active_incidents: canonical.active_incidents,
+        max_incident_severity: canonical.max_incident_severity,
+        summary: canonical.summary,
+        staleness_seconds: canonical.staleness_seconds,
+        last_updated: canonical.last_updated,
+        api_version: canonical.api_version
       };
       res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
       res.end(JSON.stringify(organism, null, 2));
