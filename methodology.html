@@ -10,58 +10,107 @@ th{color:#8b949e;text-align:left;padding:6px 10px;border-bottom:1px solid #1e293
 td{padding:6px 10px;border-bottom:1px solid #1e293b}
 .val{color:#22d3ee;font-weight:600;font-family:monospace}
 .note{background:#1e293b;border-left:3px solid #22d3ee;padding:10px 14px;margin:1rem 0;border-radius:0 4px 4px 0;font-size:.88rem}
+.warn{background:#1e293b;border-left:3px solid #d29922;padding:10px 14px;margin:1rem 0;border-radius:0 4px 4px 0;font-size:.88rem}
 a{color:#22d3ee}
+code{background:#0f172a;padding:1px 5px;border-radius:3px;font-size:.85rem}
 footer{margin-top:2rem;padding-top:1rem;border-top:1px solid #1e293b;color:#475569;font-size:.8rem}</style></head><body>
 <h1>How the Oracle Works</h1>
-<p class="sub">Methodology and transparency for the Demos Network Oracle.<br>This page explains exactly how assessments are made, what data is used, and what the Oracle does not do.</p>
+<p class="sub">This page explains how the Demos Network Oracle makes its assessments, what data it uses, and what it can and cannot know. Everything described here is what the Oracle actually does — not aspirational, not approximate.</p>
 <h2>What the Oracle Is</h2>
-<p>The Demos Network Oracle is a public, watch-only intelligence service for the Demos blockchain testnet. It monitors public validator nodes, tracks whether they agree on the state of the chain, detects incidents, and publishes its findings.</p>
-<p>The Oracle observes, interprets, and summarizes. It never commands, never predicts, and never issues operational instructions.</p>
-<h2>The Truth Model</h2>
-<p>Every Oracle assessment is built from seven independent concepts. Each answers exactly one question. No two overlap.</p>
-<table><thead><tr><th>Concept</th><th>Question</th><th>Values</th></tr></thead><tbody>
-<tr><td><b>Status</b></td><td>What is the network's condition?</td><td><span class="val">stable · degraded · unstable · unknown</span></td></tr>
-<tr><td><b>Trend</b></td><td>How is it changing?</td><td><span class="val">improving · stable · worsening · unknown</span></td></tr>
+<p>The Demos Network Oracle is a public observability layer for the Demos blockchain testnet. It watches the network's public validator nodes, measures whether they agree on the state of the chain, tracks specific problems, and publishes what it finds.</p>
+<p>The Oracle is strictly watch-only. It observes, interprets, and summarizes. It does not command validators, does not advise operators, and does not make predictions about what will happen next. It publishes network state as neutral facts. What anyone does with those facts is their decision.</p>
+<p>The Oracle is independent. It is not operated by the Demos core team. It does not control any downstream system. Any agent, builder, or person can consume its output and form their own conclusions.</p>
+<h2>What It Measures</h2>
+<p>Every Oracle assessment is built from seven independent concepts. Each answers exactly one question about the network. No two concepts overlap — if you can express something by combining two other concepts, it is not given its own field.</p>
+<table><thead><tr><th>Concept</th><th>Question</th><th>Possible values</th></tr></thead><tbody>
+<tr><td><b>Status</b></td><td>What is the network's condition right now?</td><td><span class="val">stable · degraded · unstable · unknown</span></td></tr>
+<tr><td><b>Trend</b></td><td>Is the condition changing?</td><td><span class="val">improving · stable · worsening · unknown</span></td></tr>
 <tr><td><b>Risk</b></td><td>How dangerous is the current state?</td><td><span class="val">low · elevated · high</span></td></tr>
-<tr><td><b>Data Quality</b></td><td>Can the Oracle see the network properly?</td><td><span class="val">sufficient · insufficient</span></td></tr>
-<tr><td><b>Confidence</b></td><td>Do observed signals agree?</td><td><span class="val">clear · uncertain</span></td></tr>
-<tr><td><b>Agreement</b></td><td>Are validators in consensus?</td><td><span class="val">strong · moderate · weak · unknown</span></td></tr>
+<tr><td><b>Data quality</b></td><td>Can the Oracle see the network properly?</td><td><span class="val">sufficient · insufficient</span></td></tr>
+<tr><td><b>Confidence</b></td><td>Do the observed signals agree with each other?</td><td><span class="val">clear · uncertain</span></td></tr>
+<tr><td><b>Agreement</b></td><td>Are the validators in consensus?</td><td><span class="val">strong · moderate · weak · unknown</span></td></tr>
 <tr><td><b>Incidents</b></td><td>What specific problems are active?</td><td><span class="val">info · warning · critical</span></td></tr>
 </tbody></table>
-<h2>How Status Is Determined</h2>
-<p><b>Status</b> is the top-level assessment. It is a snapshot — it reflects what is true right now, not what happened before or what might happen next.</p>
-<h3>stable</h3><p>All or nearly all public nodes are online, synced, and producing blocks. Agreement is strong. No active incidents at warning or critical severity. One offline node with strong agreement remains stable — at current network size, this is normal.</p>
-<h3>degraded</h3><p>The network is operational but impaired. Multiple nodes may be offline, agreement may be reduced, or warning-level incidents are active.</p>
-<h3>unstable</h3><p>The network is seriously impaired. Critical incidents are active, agreement is weak, or a majority of nodes are unreachable.</p>
-<h3>unknown</h3><p>The Oracle cannot determine the network's condition. Fewer than two public nodes are reachable, or data is stale. This is not a health judgment — it means the Oracle lacks sufficient data to assess.</p>
-<h2>Risk vs Status</h2>
-<p><b>Status</b> describes condition: is the network healthy? <b>Risk</b> describes exposure: is the current condition dangerous? They often correlate but are independent.</p>
-<p><span class="val">low</span> — operating within normal parameters. <span class="val">elevated</span> — caution warranted; conditions are not fully clear or not fully healthy. <span class="val">high</span> — materially impaired.</p>
-<p>When status is unknown, risk defaults to elevated — the absence of information is itself a reason for caution, but not alarm.</p>
-<h2>Data Quality vs Confidence</h2>
-<p>These are the Oracle's two self-assessment dimensions. Together they answer: how much should you trust this output?</p>
-<p><b>Data quality</b> measures observability — can the Oracle see the network? It depends on how many nodes responded, how recently, and whether observations completed without errors.</p>
-<p><b>Confidence</b> measures interpretive certainty — do the signals agree? The Oracle may have full visibility but see contradictory data. That is a confidence problem, not a data quality problem.</p>
-<div class="note">"I can't see enough" = data quality problem.<br>"What I see is contradictory" = confidence problem.</div>
-<h2>Agreement</h2>
-<p>Agreement measures whether public validators are producing a coherent, shared chain. It is computed from public node block heights only — fleet nodes are excluded.</p>
-<p>The Oracle publishes raw counts (aligned nodes, total nodes, block spread) rather than percentages, because at current network size ratios can be misleadingly precise.</p>
-<h2>Data Sources</h2>
-<p>The Oracle monitors public validator nodes every 20 seconds. For each node it checks: is it reachable? What block is it on? Is it synced? How many peers does it see?</p>
-<p>Current public nodes include Kynesys-operated validators and manually approved community validators. New validators are discovered automatically via peer list crawling and added to monitoring after approval.</p>
-<p>The Oracle also maintains a fleet of reference nodes operated by CypherX33. Fleet data is used for internal calibration only and never influences public assessments.</p>
+<h3>Status</h3>
+<p><span class="val">stable</span> — The network is operating normally. Public nodes are online, synced, and in agreement. No active incidents at warning or critical severity. At current network size, one offline node with strong agreement is still considered stable — this is normal testnet behavior, not impairment.</p>
+<p><span class="val">degraded</span> — The network is working but impaired. Multiple nodes may be offline, agreement may be weakened, or warning-level incidents are active.</p>
+<p><span class="val">unstable</span> — Serious impairment. Critical incidents are active, agreement is weak, or a majority of public nodes are unreachable.</p>
+<p><span class="val">unknown</span> — The Oracle cannot determine the network's condition. This happens when fewer than two public nodes are reachable or when observation data is stale. This is not a health judgment — it is an explicit statement that the Oracle does not have enough information.</p>
+<h3>Trend</h3>
+<p>Trend tells you whether the situation is getting better, holding steady, or getting worse, based on comparing the current observation against recent history. It is purely backward-looking — it describes what has changed, never what will change.</p>
+<p>Trend requires a minimum number of consecutive successful observations before it reports anything other than <span class="val">unknown</span>. After a restart or data gap, trend resets to <span class="val">unknown</span> until enough history accumulates.</p>
+<div class="warn">Trend currently defaults to <span class="val">unknown</span> because per-cycle public node history storage is not yet implemented. This will be enabled in a future update.</div>
+<h3>Risk</h3>
+<p>Risk describes how dangerous the current observed state is. It is a snapshot — it characterizes the present moment, not a forecast.</p>
+<p><span class="val">low</span> — No significant exposure. <span class="val">elevated</span> — Caution warranted. This does not mean danger is confirmed — it means conditions are not fully clear or not fully healthy. <span class="val">high</span> — The network is materially impaired.</p>
+<p>When status is <span class="val">unknown</span>, risk defaults to <span class="val">elevated</span>. The Oracle treats the absence of information as a reason for caution — but not alarm. On a testnet where <span class="val">unknown</span> is a normal occurrence, defaulting to <span class="val">high</span> would desensitize consumers.</p>
+<h3>Data quality</h3>
+<p>Data quality measures whether the Oracle can see the network properly. It answers: did enough public nodes respond, recently enough, to form a credible assessment?</p>
+<p><span class="val">sufficient</span> — At least two public nodes responded within the current cycle and data is fresh. <span class="val">insufficient</span> — Too few nodes responded or data is stale beyond acceptable bounds. When data quality is insufficient, status is set to <span class="val">unknown</span>.</p>
+<h3>Confidence</h3>
+<p>Confidence measures whether the observed signals agree with each other. The Oracle may have full visibility (data quality is sufficient) but see contradictory information — nodes reporting divergent block heights, mixed health signals. That is a confidence problem.</p>
+<p><span class="val">clear</span> — Signals are consistent and unambiguous. <span class="val">uncertain</span> — Signals conflict or are ambiguous. Status and risk are still published, but should be consumed with caution.</p>
+<div class="note"><b>Data quality ≠ confidence.</b> "I can't see enough" is a data quality problem. "What I see is contradictory" is a confidence problem. A network can have sufficient data quality but uncertain confidence (full visibility, conflicting data) — or insufficient data quality but clear confidence (limited data, but what's visible is consistent).</div>
+<h3>Agreement</h3>
+<p>Agreement measures whether the public validators are producing a coherent, shared chain. It is derived from public node block heights — specifically, how many nodes are within a tight block range of the median.</p>
+<p><span class="val">strong</span> — All or nearly all observed public nodes are aligned. <span class="val">moderate</span> — Most agree, but some divergence exists. <span class="val">weak</span> — Significant divergence. <span class="val">unknown</span> — Fewer than two public nodes are reachable.</p>
+<p>The Oracle publishes the underlying data alongside the label: aligned node count, total node count, median block height, and block spread. At current network size, calculated percentages would be misleadingly precise, so the Oracle publishes counts instead.</p>
+<h3>Incidents</h3>
+<p>Incidents are discrete, named events — a specific node going offline, a chain stall, a detected partition. They have a severity (<span class="val">info</span>, <span class="val">warning</span>, <span class="val">critical</span>) and a lifecycle (opened → active → resolved).</p>
+<p>General conditions like "the network is slow" are not incidents — they are captured by status, risk, and agreement. Incidents point to specific, identifiable problems.</p>
+<p>Severity is assessed relative to current network size. One node going offline in a set of five is more significant than in a set of fifty.</p>
+<h2>How It Works</h2>
+<p>The Oracle runs a continuous observation cycle. Every 20 seconds, it:</p>
+<p>1. Polls each known public validator node — checks reachability, block height, sync status, and peer count.<br>
+2. Computes network agreement from the observed block heights.<br>
+3. Checks for active incidents — new problems, resolved problems.<br>
+4. Runs the canonical state computation — derives all seven concepts from the raw observations.<br>
+5. Updates all API endpoints with the new state.</p>
+<p>Every 20 minutes, the Oracle publishes an attested summary on-chain via SuperColony.</p>
+<p>The canonical state computation is a single function that takes public node observations as input and produces all seven values as output. Fleet data never enters this function. The computation is deterministic — given the same observations, it always produces the same assessment.</p>
 <h2>Public vs Reference Separation</h2>
-<p>This is the most important structural rule in the Oracle. All top-level assessments — status, risk, confidence, data quality, agreement, trend — are derived exclusively from public node observations.</p>
-<p>Fleet (reference) data is published separately for transparency but never enters the public assessment. In the API, fleet data appears only under a clearly namespaced <code>reference</code> key. The compact agent feed (<code>/organism</code>) contains zero fleet fields.</p>
-<h2>What the Oracle Does Not Do</h2>
-<p>The Oracle publishes state, not policy. It will never tell you what to do. Specifically:</p>
-<p>• No predictions — trend is backward-looking (what changed), never forward-looking (what will change).<br>• No recommendations — the Oracle does not say "safe" or "unsafe." It publishes status, risk, and confidence; consumers decide.<br>• No operational advice — the Oracle never instructs validators or operators to take action.<br>• No scoring — assessments are categorical (stable/degraded/unstable), not numeric (0-100).</p>
-<h2>Interpreting the Output</h2>
-<p>The simplest consumption pattern is the <b>minimal triple</b>: <code>status</code> + <code>risk</code> + <code>confidence</code>. These three fields give you the complete picture in three words.</p>
-<p>For more detail, add <code>agreement</code> (are validators aligned?) and <code>active_incidents</code> (what specifically is wrong?). For trust calibration, check <code>data_quality</code> and <code>staleness_seconds</code>.</p>
-<div class="note">Agent endpoint: <a href="/organism">/organism</a> — 12 fields, flat JSON, public-only.<br>Full diagnostic: <a href="/health">/health</a> — canonical + derived + reference + legacy.<br>API documentation: <a href="/docs">/docs</a></div>
-<h2>Limitations</h2>
-<p>DEMOS is a young testnet. The Oracle's public node coverage is small and evolving. Assessments use coarse-grained categories that match the current data resolution. As the network grows, the Oracle will support finer granularity without structural changes.</p>
-<p>The Oracle can only assess what it can observe. Nodes that are unreachable, firewalled, or not yet discovered are invisible. The Oracle is honest about these gaps — unknown and insufficient are always explicitly stated, never hidden.</p>
+<p>This is the most important structural rule in the Oracle. It governs everything.</p>
+<h3>Public network (primary truth)</h3>
+<p>All top-level assessments — status, trend, risk, data quality, confidence, agreement — are derived exclusively from public network observations. Public nodes are validator nodes operated by independent parties: Kynesys (the protocol team) and manually approved community validators.</p>
+<h3>Reference fleet (internal context)</h3>
+<p>The Oracle operator (CypherX33) also runs a fleet of seven validator nodes. These provide internal context and infrastructure health monitoring. Fleet data is published separately for transparency — but it never influences the public assessment.</p>
+<p>The fleet is a reference layer because it is operated by a single entity, may be on a different chain state than the public network, and its health does not represent public network health.</p>
+<h3>How separation is enforced</h3>
+<p>In the API: fleet data appears only under a namespaced <code>reference</code> key in <code>/health</code>. The compact agent feed (<code>/organism</code>) contains zero fleet fields. Fleet incidents are tagged with scope <code>"fleet"</code> and excluded from the public incident count. The <code>/incidents</code> endpoint defaults to public scope only.</p>
+<p>In the dashboard: public data is presented first. Fleet data is in a collapsed "Reference Layer" section, clearly labeled.</p>
+<h2>Understanding Uncertainty</h2>
+<p>The Oracle treats uncertainty as a first-class output. On a young testnet with small, evolving node coverage, partial visibility is a normal operating condition — not an error.</p>
+<p>The Oracle starts from caution and earns stronger claims through sustained observation. It prefers honest uncertainty over artificial precision.</p>
+<h3>Three kinds of uncertainty</h3>
+<p><b>Insufficient data.</b> The Oracle does not have enough information to form an assessment. Too few public nodes responded, or the Oracle just started and hasn't completed a full cycle yet. Effect: data quality → <span class="val">insufficient</span>, status → <span class="val">unknown</span>, risk → <span class="val">elevated</span>.</p>
+<p><b>Stale data.</b> The Oracle has data, but it may be too old to reflect current reality. Observation failures, network timeouts, or process interruptions can cause staleness. The Oracle always publishes how many seconds ago it last observed the network (<code>staleness_seconds</code>) so consumers can apply their own freshness judgment.</p>
+<p><b>Contradictory data.</b> The Oracle has fresh, sufficient data, but the signals conflict — nodes report different block heights, mixed health signals. This is often the most informative kind of uncertainty, because it frequently signals a real network event. Effect: confidence → <span class="val">uncertain</span>, but data quality remains <span class="val">sufficient</span>. The problem is in the network, not in the Oracle's ability to observe.</p>
+<h3>The unknown contract</h3>
+<p>When the Oracle reports <span class="val">unknown</span>, <span class="val">insufficient</span>, or <span class="val">uncertain</span> for any field:</p>
+<p>1. The value is explicitly stated — never omitted, never null.<br>
+2. No guess, default, or cached value is substituted.<br>
+3. Consumers can rely on these states as stable, intentional signals — not bugs.</p>
+<h2>Known Limitations</h2>
+<p>DEMOS is a young testnet. The Oracle is designed for this reality and makes no claims beyond what it can observe.</p>
+<p><b>Small public node set.</b> The Oracle currently monitors five public nodes (two Kynesys, three community). Assessments use coarse-grained categories that match this resolution. As the network grows, finer granularity will be added without structural changes.</p>
+<p><b>Trend is unavailable.</b> Trend currently defaults to <span class="val">unknown</span> because per-cycle public node history is not yet stored. When this data foundation is built, trend will be computed automatically.</p>
+<p><b>Discovered but unmonitored validators.</b> The Oracle discovers new validators via peer list crawling. Some may be online but not yet added to formal monitoring. The Network Growth panel on the dashboard shows their sync progress. They are added to monitoring manually after reaching the network head.</p>
+<p><b>Observable coverage only.</b> The Oracle can only assess what it can reach. Nodes that are firewalled, on private networks, or not yet discovered are invisible. The Oracle is honest about this — <span class="val">unknown</span> and <span class="val">insufficient</span> are always explicitly stated.</p>
+<p><b>No prediction.</b> The Oracle describes what is, not what will be. Even trend is backward-looking. Predictive signals may be added as a separate, clearly labeled layer in the future — never merged into the core truth model.</p>
+<h2>How to Use the Data</h2>
+<h3>For builders and operators</h3>
+<p>The dashboard at <a href="/dashboard">/dashboard</a> provides a visual overview. The banner shows current status with risk and confidence context. The Network Agreement panel shows whether validators agree. The Network Growth panel tracks validator discovery and sync progress.</p>
+<p>The <a href="/health">/health</a> endpoint provides full diagnostic data — canonical fields at the top level, derived data for detail, fleet data under <code>reference</code>, and deprecated fields under <code>legacy</code>.</p>
+<h3>For agents and automated consumers</h3>
+<p>The <a href="/organism">/organism</a> endpoint is the primary agent feed. It returns 12 flat fields with no nested objects and no fleet data. Every field is always present and never null.</p>
+<p>The simplest consumption pattern is the <b>minimal triple</b>: read <code>status</code> + <code>risk</code> + <code>confidence</code>. These three fields give you the complete network picture in three values. Your agent decides what to do with them — the Oracle never tells you.</p>
+<p>For trust calibration: check <code>data_quality</code> before relying on the assessment. Check <code>staleness_seconds</code> to know how fresh the data is. If data quality is <span class="val">insufficient</span>, treat all other values with skepticism.</p>
+<p>For incident awareness: <code>active_incidents</code> gives the count, <code>max_incident_severity</code> tells you the worst active problem without needing to fetch the full incident list.</p>
+<div class="note"><b>API endpoints</b><br>
+Agent feed: <a href="/organism">/organism</a> — 12 fields, flat JSON, public-only, refreshes every 20 seconds.<br>
+Full diagnostic: <a href="/health">/health</a> — canonical + derived + reference + legacy.<br>
+Incident log: <a href="/incidents">/incidents</a> — public scope by default, <code>?scope=fleet</code> or <code>?scope=all</code> available.<br>
+API documentation: <a href="/docs">/docs</a><br>
+API version: <code>1.0</code></div>
 <footer>Demos Network Oracle · API v1.0 · <a href="/dashboard">Dashboard</a> · <a href="/docs">API Docs</a> · <a href="https://github.com/xm33/demos-fleet-oracle">GitHub</a></footer>
 </body></html>
