@@ -1,0 +1,130 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Demos Network Oracle — Sources</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Code+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0a;--surface:#101010;--border:#1a1a1a;--text-primary:#f5f5f5;--text-secondary:#98a2b3;--improving:#2dd4a0;--degraded:#d97706;--unstable:#EF4444;--brand:#2B36D9;--mono:'Source Code Pro',monospace;--sans:'Inter',system-ui,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--sans);background:var(--bg);color:var(--text-primary);-webkit-font-smoothing:antialiased;line-height:1.7}
+main{max-width:920px;margin:0 auto;padding:28px 24px 80px}
+h1{font-family:var(--mono);font-size:28px;font-weight:600;letter-spacing:-0.03em;margin:0 0 4px}
+.sub{color:var(--text-secondary);margin-bottom:32px;font-size:14px;line-height:1.7;max-width:680px}
+h2{font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:-0.02em;color:var(--text-primary);margin:36px 0 12px;padding-top:16px;border-top:1px solid var(--border)}
+h3{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text-primary);margin:18px 0 6px}
+p{color:var(--text-secondary);font-size:14px;line-height:1.72;margin:0 0 12px}
+code{font-family:var(--mono);color:var(--text-primary);background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:12px}
+a{color:var(--improving);text-decoration:none}
+a:hover{text-decoration:underline}
+.layer-card{margin:16px 0;padding:18px 20px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+.layer-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.layer-badge{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;padding:3px 8px;border-radius:999px;line-height:1}
+.layer-badge.canonical{color:var(--improving);border:1px solid rgba(45,212,160,0.25);background:rgba(45,212,160,0.06)}
+.layer-badge.reference{color:var(--text-secondary);border:1px solid var(--border);background:rgba(255,255,255,0.03)}
+.layer-badge.community{color:var(--degraded);border:1px solid rgba(217,119,6,0.25);background:rgba(217,119,6,0.06)}
+.layer-title{font-family:var(--mono);font-size:15px;font-weight:600}
+.layer-desc{color:var(--text-secondary);font-size:13px;line-height:1.6;margin:0}
+.layer-detail{color:var(--text-secondary);font-size:12px;margin-top:8px;opacity:0.75;font-family:var(--mono)}
+.flow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:24px 0;padding:16px 20px;border:1px solid var(--border);border-radius:12px;background:var(--surface);font-family:var(--mono);font-size:13px;color:var(--text-secondary)}
+.flow-step{color:var(--text-primary);font-weight:500}
+.flow-arrow{color:var(--text-secondary);opacity:0.4}
+.endpoints{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.ep{font-family:var(--mono);font-size:12px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;color:var(--text-primary);text-decoration:none}
+.ep:hover{border-color:var(--improving);color:var(--improving);text-decoration:none}
+.note{margin:16px 0;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text-secondary);font-size:12px;line-height:1.6}
+footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text-secondary);font-size:12px;opacity:0.6}
+.doc-nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);background:rgba(10,10,10,0.88);border-bottom:1px solid var(--border)}
+.doc-nav-inner{max-width:920px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.doc-nav-left,.doc-nav-right{display:flex;align-items:center;gap:14px}
+.doc-nav-brand{color:var(--text-primary);text-decoration:none;font-family:var(--mono);font-size:12px;letter-spacing:0.04em;font-weight:600}
+.doc-nav-brand:hover{text-decoration:none;opacity:0.9}
+.doc-nav-link{color:var(--text-secondary);text-decoration:none;font-family:var(--mono);font-size:11px}
+.doc-nav-link:hover{color:var(--text-primary);text-decoration:none}
+.doc-nav-sep{width:1px;height:14px;background:var(--border)}
+@media(max-width:720px){main{padding:20px 16px 64px}h1{font-size:24px}h2{font-size:15px}.flow{flex-direction:column;align-items:flex-start;gap:6px}.doc-nav-inner{padding:10px 16px}}
+</style></head><body>
+<nav class="doc-nav">
+  <div class="doc-nav-inner">
+    <div class="doc-nav-left"><a href="/" class="doc-nav-brand">ORACLE</a></div>
+    <div class="doc-nav-right">
+      <a href="/" class="doc-nav-link">Home</a>
+      <span class="doc-nav-sep"></span>
+      <a href="/agent" class="doc-nav-link">Agent</a>
+      <span class="doc-nav-sep"></span>
+      <a href="/methodology" class="doc-nav-link">Methodology</a>
+      <span class="doc-nav-sep"></span>
+      <a href="/sources" class="doc-nav-link" style="color:var(--text-primary)">Sources</a>
+    </div>
+  </div>
+</nav>
+<main>
+<h1>Sources</h1>
+<p class="sub">Where the Oracle derives its view of the network. The Oracle observes multiple independent sources and resolves them into a single public state using deterministic aggregation.</p>
+
+<h2>Resolution Model</h2>
+<div class="flow">
+  <span class="flow-step">Sources</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Observation</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Aggregation</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Public State</span>
+</div>
+<p>Each public node is observed independently every 20 seconds. Their states are compared and aligned using deterministic rules. The resulting state reflects agreement, disagreement, and uncertainty across sources. The same inputs always produce the same public state.</p>
+
+<h2>Source Layers</h2>
+
+<div class="layer-card">
+  <div class="layer-header">
+    <span class="layer-badge canonical">Canonical</span>
+    <span class="layer-title">Public Network</span>
+  </div>
+  <p class="layer-desc">Public validator nodes used to determine network status, agreement, and risk. These are the primary truth sources. All canonical assessments are derived exclusively from this layer.</p>
+  <div class="layer-detail">Includes: Kynesys-operated nodes, approved community validators</div>
+</div>
+
+<div class="layer-card">
+  <div class="layer-header">
+    <span class="layer-badge reference">Reference</span>
+    <span class="layer-title">Fleet</span>
+  </div>
+  <p class="layer-desc">Internally operated validator nodes used to anchor and validate observations. The fleet provides an infrastructure health baseline and serves as a trust signal for Oracle reliability. Fleet data never influences public status, risk, or agreement.</p>
+  <div class="layer-detail">Operated by: CypherX33 &middot; Not part of canonical network view</div>
+</div>
+
+<div class="layer-card">
+  <div class="layer-header">
+    <span class="layer-badge community">Community</span>
+    <span class="layer-title">Community Validators</span>
+  </div>
+  <p class="layer-desc">Community-submitted nodes observed for additional network visibility. After submission and manual approval, community nodes may be included in the canonical monitoring set and contribute to network agreement assessment.</p>
+  <div class="layer-detail">Submitted via: <a href="/submit">/submit</a> &middot; Manual approval required</div>
+</div>
+
+<h2>Separation Rules</h2>
+<p>Public status, risk, trend, agreement, confidence, and data quality are computed from public node data only. Fleet data is used internally as a reference layer and does not influence public assessments. Community nodes, once approved, become part of the canonical public set.</p>
+
+<h2>Public Endpoints</h2>
+<p>All Oracle data is available through public JSON endpoints:</p>
+<div class="endpoints">
+  <a href="/organism" class="ep">/organism</a>
+  <a href="/health" class="ep">/health</a>
+  <a href="/incidents" class="ep">/incidents</a>
+  <a href="/peers" class="ep">/peers</a>
+  <a href="/badge" class="ep">/badge</a>
+  <a href="/self" class="ep">/self</a>
+</div>
+
+<h2>Attestation</h2>
+<p>Oracle observations are published on-chain via <a href="https://supercolony.ai" target="_blank" rel="noopener">SuperColony</a> every 20 minutes. Attestation strengthens provenance and enables independent verification of published observations. It does not eliminate observational limits or guarantee future conditions.</p>
+
+<h2>Limits</h2>
+<p>Oracle outputs are based on externally observable signals available during each measurement cycle. Public endpoint availability, temporary network conditions, or incomplete visibility may affect results. Outputs should be interpreted as structured observed assessments, not guarantees of present or future network behavior.</p>
+<p>Inclusion of a validator in Oracle outputs does not imply endorsement, approval, or certification.</p>
+
+<div class="note">The Oracle is a watch-only observability system. It summarizes observed network conditions but does not provide financial, operational, legal, or governance advice.</div>
+
+<footer>Demos Network Oracle &middot; API v1.0 &middot; <a href="/methodology">Methodology</a> &middot; <a href="https://github.com/xm33/demos-fleet-oracle">GitHub</a></footer>
+</main>
+</body></html>
