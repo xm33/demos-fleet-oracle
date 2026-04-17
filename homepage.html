@@ -30,7 +30,8 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
 .navbar-inner { display:flex; align-items:center; justify-content:space-between; width:100%; max-width:980px; padding:0 28px; }
 .navbar-left { display:flex; align-items:center; gap:28px; }
 .navbar-right { display:flex; align-items:center; gap:12px; }
-.navbar-brand { font-family:var(--mono); font-weight:700; font-size:13px; letter-spacing:2.6px; color:var(--brand); }
+.navbar-brand { font-family:var(--mono); font-weight:700; font-size:13px; letter-spacing:2.6px; color:var(--brand); display:inline-flex; align-items:center; gap:8px; text-decoration:none; }
+.oracle-logo { width:18px; height:18px; color:var(--text-primary); }
 .nav-links { display:flex; align-items:center; gap:18px; }
 .nav-links a { font-size:11px; font-weight:500; color:var(--text-secondary); text-decoration:none; letter-spacing:0.7px; text-transform:uppercase; transition:color 0.2s; }
 .nav-links a:hover { color:var(--text-primary); }
@@ -148,7 +149,7 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
 <nav class="navbar">
   <div class="navbar-inner">
   <div class="navbar-left">
-    <span class="navbar-brand">ORACLE</span>
+    <a href="/" class="navbar-brand"><svg class="oracle-logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="20" r="3" fill="currentColor"/><circle cx="20" cy="70" r="3" fill="currentColor"/><circle cx="80" cy="70" r="3" fill="currentColor"/><circle cx="50" cy="50" r="4" fill="currentColor"/></svg>ORACLE</a>
     <div class="nav-links">
       <a href="#overview">Overview</a>
       <a href="#validators">Nodes</a>
