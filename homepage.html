@@ -26,7 +26,8 @@
 body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary); min-height:100vh; -webkit-font-smoothing:antialiased; }
 
 /* NAVBAR */
-.navbar { display:flex; align-items:center; justify-content:space-between; padding:0 28px; height:52px; border-bottom:1px solid var(--border); background:rgba(16,16,16,0.92); backdrop-filter:blur(10px); position:sticky; top:0; z-index:100; }
+.navbar { display:flex; align-items:center; justify-content:center; padding:0; height:52px; border-bottom:1px solid var(--border); background:rgba(16,16,16,0.92); backdrop-filter:blur(10px); position:sticky; top:0; z-index:100; }
+.navbar-inner { display:flex; align-items:center; justify-content:space-between; width:100%; max-width:980px; padding:0 28px; }
 .navbar-left { display:flex; align-items:center; gap:28px; }
 .navbar-right { display:flex; align-items:center; gap:12px; }
 .navbar-brand { font-family:var(--mono); font-weight:700; font-size:13px; letter-spacing:2.6px; color:var(--brand); }
@@ -106,7 +107,9 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
 .api-example { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; font-family:var(--mono); font-size:12px; line-height:1.65; color:var(--text-secondary); overflow-x:auto; white-space:pre; }
 
 /* FOOTER */
-.footer { padding:28px 0 34px; text-align:center; font-size:11px; color:var(--text-secondary); line-height:1.8; }
+.footer { padding:28px 0 34px; text-align:center; display:flex; justify-content:center;
+}
+.footer-inner { max-width:980px; width:100%; padding:0 28px; text-align:center; font-size:11px; color:var(--text-secondary); line-height:1.8; }
 .footer a { color:var(--text-secondary); text-decoration:none; }
 .footer a:hover { color:var(--text-primary); }
 .oracle-ecosystem { display:flex; gap:8px; justify-content:center; margin-bottom:0; flex-wrap:wrap; align-items:center; font-size:11px; opacity:0.52; }
@@ -121,6 +124,7 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
 .demos-logo { font-weight:700; font-size:16px; opacity:0.8; }
 .eco-btn { display:inline-flex; align-items:center; background:#111827; border:1px solid #2a3040; border-radius:8px; padding:10px 18px; font-family:var(--sans); font-size:12px; font-weight:500; color:#d1d5db; letter-spacing:0.5px; text-decoration:none; transition:all 0.2s; }
 .eco-btn:hover { border-color:#4a5568; color:var(--text-primary); background:#1a2234; }
+.footer-inner { max-width:980px; width:100%; margin:0 auto; padding:0 28px; }
 .footer-meta { margin-top:12px; font-size:11px; opacity:0.4; }
 .loading { color:var(--text-secondary); font-family:var(--mono); font-size:13px; }
 
@@ -140,6 +144,7 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
 </head>
 <body>
 <nav class="navbar">
+  <div class="navbar-inner">
   <div class="navbar-left">
     <span class="navbar-brand">ORACLE</span>
     <div class="nav-links">
@@ -157,6 +162,7 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
       <svg class="dbtn-logo" viewBox="0 0 227 267" xmlns="http://www.w3.org/2000/svg"><path d="M80 1.9C107-3.3 131.7 3.5 137.9 5.4L146 8.1 78.4 206.7l-8-2.7c-2.2-.9-26-9.2-45.4-29.8C5.7 153.5-9.2 120.6 6.7 70.2 23.3 24.3 53 7.1 80 1.9zm32.8 15.7C93.5 14 49.6 17.8 28.2 69.8c-5.3 12.9-4.8 24.4-.7 33.6 4 9.2 11.6 16.1 20.4 19.9 8.8 3.8 18.8 4.4 27.7 1 8.9-3.4 16.7-10.9 21-23.2l24.1-71.2c1.9-5.6-2-10.8-7.4-12.1l-.5-.1zM156.7 64.1c2 .7 25.9 9 45.2 29.7 19.3 20.6 34.3 53.7 18.5 104 -16.6 46-47.8 62.7-75.6 65.7-27.9 5-52.4-1.8-55.7-2.9l-8.1-2.7L148.7 61.4zm22.5 80.6c-8.8-3.8-18.8-4.4-27.7-1-8.9 3.4-16.7 10.9-21 23.2l-24.1 71.2c-1.9 5.6 2 10.8 7.4 12.1l.5.1c19.2 3.6 63.1-.2 84.6-52.2 5.3-12.9 4.8-24.4.7-33.6-4-9.2-11.6-16.1-20.4-19.9z" fill="#fff" stroke="none"/></svg>
       <span class="dbtn-wordmark">DEMOS</span>
     </a>
+  </div>
   </div>
 </nav>
 <div class="main">
@@ -213,7 +219,6 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
     </div>
     <div id="api-example" class="api-example loading">Loading...</div>
   </section>
-</div>
   </section>
 
   <section class="section">
@@ -226,16 +231,20 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
     </div>
     <div style="margin-top:8px;font-size:10px;color:var(--text-secondary);opacity:0.6;font-family:var(--mono);line-height:1.5">Oracle outputs are structured observed assessments, not guarantees of present or future validator behavior.</div>
   </section>
-
-  <section class="section">
-    <span>·</span>
-    <a href="https://scan.demos.sh">Scan</a>
-    <span>·</span>
-    <a href="https://faucet.demos.sh">Faucet</a>
-  </div>
-  <div class="footer-meta">Demos Network Oracle · API v1.0 · <a href="/methodology">Methodology</a> · <a href="https://github.com/xm33/demos-fleet-oracle">GitHub</a></div>
 </div>
-<script>
+
+<div class="footer">
+  <div class="footer-inner">
+    <div class="oracle-ecosystem">
+      <a href="https://demos.sh">demos.sh</a>
+      <span>·</span>
+      <a href="https://scan.demos.sh">Scan</a>
+      <span>·</span>
+      <a href="https://faucet.demos.sh">Faucet</a>
+    </div>
+    <div class="footer-meta">Demos Network Oracle · API v1.0 · <a href="/methodology">Methodology</a> · <a href="https://github.com/xm33/demos-fleet-oracle">GitHub</a></div>
+  </div>
+</div>
 function signalColor(v) {
   var m = {
     stable:'var(--stable)',degraded:'var(--degraded)',unstable:'var(--unstable)',unknown:'var(--unknown)',
