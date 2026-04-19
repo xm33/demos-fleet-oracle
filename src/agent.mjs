@@ -2134,6 +2134,133 @@ function generatePrometheusMetrics(fleetData) {
         res.writeHead(200, {"Content-Type":"application/json"});
         res.end(JSON.stringify({total:totals.total||0, pending:totals.pending||0, probed_ok:totals.probed_ok||0, probed_failed:totals.probed_failed||0, approved:totals.approved||0, top_ports:topPorts, failure_reasons:failReasons, recent:recent}, null, 2));
       } catch(err) { res.writeHead(500, {"Content-Type":"application/json"}); res.end(JSON.stringify({error:err.message})); }
+    } else if (req.url === "/community") {
+      if (!sharedDb) { res.writeHead(200, {"Content-Type":"text/html"}); res.end("<h1>No data</h1>"); return; }
+      var rows = sharedDb.query("SELECT id, host, port, operator, status, probe_ok, probe_block, probe_error, probe_identity, submitted_at FROM submissions ORDER BY id DESC LIMIT 50").all();
+      // Get network head from latest public node data
+      var netHead = 0;
+      try { var pn = latestPublicNodes || []; for (var pi=0;pi<pn.length;pi++) { if (pn[pi].block && pn[pi].block > netHead) netHead = pn[pi].block; } } catch(e){}
+      function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+      function computeStage(r, netHead) {
+        if (r.status === "approved") return "approved";
+        if (r.status === "duplicate") return "duplicate";
+        if (!r.probe_ok) {
+          if (r.probe_error) return "unreachable";
+          return "submitted";
+        }
+        if (!r.probe_block) return "reachable";
+        var behind = netHead > 0 ? netHead - r.probe_block : 0;
+        if (behind <= 0) return "ready";
+        if (behind <= 100) return "near_head";
+        return "syncing";
+      }
+      function stageInfo(stage, r) {
+        var reasons = {
+          submitted: ["Submission received, probe pending or not yet attempted.", "The Oracle will probe your node automatically."],
+          unreachable: ["Oracle cannot reach this node. Error: " + (r.probe_error||"unknown").replace(/_/g," ") + ".", "Check that your node is running, the port is open, and the firewall allows inbound connections."],
+          reachable: ["Node responds but no block data received.", "Verify your node is fully initialized and syncing."],
+          syncing: ["Node is reachable and syncing, but still behind the network head.", "Wait until the node syncs closer to the network head. Approval happens after sync."],
+          near_head: ["Node is close to the network head.", "Continue syncing. This node may soon be eligible for manual review."],
+          ready: ["Node is synced and ready for approval.", "Pending manual review by the Oracle operator."],
+          approved: ["Node has been approved and is now monitored.", "Your node appears in the main Oracle homepage."],
+          duplicate: ["This node is already monitored by the Oracle.", "No further action needed."]
+        };
+        var info = reasons[stage] || ["Unknown state.", "Contact the operator."];
+        return { reason: info[0], next_step: info[1] };
+      }
+      // Build page
+      var counts = {submitted:0,unreachable:0,reachable:0,syncing:0,near_head:0,ready:0,approved:0,duplicate:0};
+      var enriched = rows.map(function(r) {
+        var stage = computeStage(r, netHead);
+        counts[stage] = (counts[stage]||0) + 1;
+        var info = stageInfo(stage, r);
+        var behind = (r.probe_block && netHead > 0) ? Math.max(0, netHead - r.probe_block) : null;
+        return { id:r.id, host:r.host, port:r.port, operator:r.operator, stage:stage, block:r.probe_block, behind:behind, error:r.probe_error, submitted_at:r.submitted_at, reason:info.reason, next_step:info.next_step };
+      });
+      var stageColors = { submitted:"#98a2b3", unreachable:"#EF4444", reachable:"#98a2b3", syncing:"#d97706", near_head:"#22c55e", ready:"#2dd4a0", approved:"#2dd4a0", duplicate:"#d97706" };
+      var stageBg = { submitted:"rgba(152,162,179,0.08)", unreachable:"rgba(239,68,68,0.08)", reachable:"rgba(152,162,179,0.08)", syncing:"rgba(217,119,6,0.08)", near_head:"rgba(34,197,94,0.08)", ready:"rgba(45,212,160,0.08)", approved:"rgba(45,212,160,0.06)", duplicate:"rgba(217,119,6,0.08)" };
+      var h = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>DNO — Community Nodes</title><meta name="viewport" content="width=device-width,initial-scale=1">';
+      h += '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Code+Pro:wght@400;500;600&display=swap" rel="stylesheet">';
+      h += '<style>';
+      h += ':root{--bg:#0a0a0a;--surface:#101010;--border:#1a1a1a;--text-primary:#f5f5f5;--text-secondary:#98a2b3;--improving:#2dd4a0;--mono:"Source Code Pro",monospace;--sans:"Inter",system-ui,sans-serif}';
+      h += '*{margin:0;padding:0;box-sizing:border-box}body{font-family:var(--sans);background:var(--bg);color:var(--text-primary);-webkit-font-smoothing:antialiased;line-height:1.7}';
+      h += 'main{max-width:1100px;margin:0 auto;padding:28px 24px 80px}';
+      h += 'h1{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-0.03em;margin:0 0 4px}';
+      h += '.sub{color:var(--text-secondary);margin-bottom:28px;font-size:13px}';
+      h += '.summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}';
+      h += '.sum-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;text-align:center;min-width:80px}';
+      h += '.sum-val{font-size:22px;font-weight:600;font-family:var(--mono)}';
+      h += '.sum-label{font-size:10px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px}';
+      h += 'table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}';
+      h += 'th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text-secondary);font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:0.5px}';
+      h += 'td{padding:8px 10px;border-bottom:1px solid #151515;font-family:var(--mono);font-size:12px}';
+      h += 'tr:hover{background:#0d0d0d}';
+      h += '.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:500;border:1px solid var(--border)}';
+      h += '.detail{display:none;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin:6px 0 10px;font-size:12px;color:var(--text-secondary);line-height:1.6}';
+      h += '.detail b{color:var(--text-primary);font-weight:500}';
+      h += '.toggle{cursor:pointer;color:var(--text-secondary);font-size:11px;text-decoration:underline}';
+      h += '.toggle:hover{color:var(--text-primary)}';
+      h += 'a{color:#c9d1d9;text-decoration:none}a:hover{text-decoration:underline}';
+      h += '.doc-nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);background:rgba(10,10,10,0.88);border-bottom:1px solid var(--border)}';
+      h += '.doc-nav-inner{max-width:1100px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;justify-content:space-between}';
+      h += '.doc-nav-left,.doc-nav-right{display:flex;align-items:center;gap:14px}';
+      h += '.doc-nav-brand{color:var(--text-primary);text-decoration:none;font-family:var(--mono);font-size:12px;letter-spacing:0.04em;font-weight:600;display:inline-flex;align-items:center;gap:6px}';
+      h += '.doc-nav-link{color:var(--text-secondary);text-decoration:none;font-family:var(--mono);font-size:11px}';
+      h += '.doc-nav-link:hover{color:var(--text-primary)}';
+      h += '.doc-nav-sep{width:1px;height:14px;background:var(--border)}';
+      h += 'footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text-secondary);font-size:11px;opacity:0.5}';
+      h += '@media(max-width:720px){main{padding:20px 16px 64px}.summary{gap:8px}.sum-card{flex:1;min-width:60px}table{font-size:11px}td,th{padding:6px 8px}}';
+      h += '</style></head><body>';
+      // Nav
+      h += '<nav class="doc-nav"><div class="doc-nav-inner"><div class="doc-nav-left">';
+      h += '<a href="/" class="doc-nav-brand"><svg style="width:22px;height:22px" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="20" r="3" fill="currentColor"/><circle cx="20" cy="70" r="3" fill="currentColor"/><circle cx="80" cy="70" r="3" fill="currentColor"/><circle cx="50" cy="50" r="4" fill="currentColor"/></svg>ORACLE</a>';
+      h += '</div><div class="doc-nav-right">';
+      h += '<a href="/" class="doc-nav-link">Home</a><span class="doc-nav-sep"></span>';
+      h += '<a href="/submit" class="doc-nav-link">Submit</a><span class="doc-nav-sep"></span>';
+      h += '<a href="/community" class="doc-nav-link" style="color:var(--text-primary)">Community</a>';
+      h += '</div></div></nav>';
+      h += '<main>';
+      h += '<h1>Community Node Onboarding</h1>';
+      h += '<p class="sub">Community validator nodes during onboarding and approval. <a href="/submit">Submit your node</a></p>';
+      // Summary
+      h += '<div class="summary">';
+      var sumItems = [["Submitted",rows.length,"#f5f5f5"],["Unreachable",counts.unreachable||0,"#EF4444"],["Syncing",counts.syncing||0,"#d97706"],["Near Head",counts.near_head||0,"#22c55e"],["Ready",counts.ready||0,"#2dd4a0"],["Approved",counts.approved||0,"#2dd4a0"]];
+      for (var si=0; si<sumItems.length; si++) {
+        h += '<div class="sum-card"><div class="sum-val" style="color:'+sumItems[si][2]+'">'+sumItems[si][1]+'</div><div class="sum-label">'+sumItems[si][0]+'</div></div>';
+      }
+      h += '</div>';
+      // Network head info
+      if (netHead > 0) h += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px;font-family:var(--mono)">Network head: ' + netHead.toLocaleString() + '</div>';
+      // Table
+      h += '<table><thead><tr><th>Node</th><th>Operator</th><th>Stage</th><th>Block</th><th>Behind</th><th>Details</th></tr></thead><tbody>';
+      if (enriched.length === 0) {
+        h += '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary);padding:20px">No community submissions yet. <a href="/submit">Submit your node</a></td></tr>';
+      }
+      for (var ri=0; ri<enriched.length; ri++) {
+        var r = enriched[ri];
+        var sc = stageColors[r.stage] || "#98a2b3";
+        var sb = stageBg[r.stage] || "transparent";
+        h += '<tr>';
+        h += '<td>' + esc(r.host) + ':' + r.port + '</td>';
+        h += '<td>' + esc(r.operator||"—") + '</td>';
+        h += '<td><span class="pill" style="color:'+sc+';background:'+sb+';border-color:'+sc+'44">' + esc(r.stage.replace(/_/g," ")) + '</span></td>';
+        h += '<td>' + (r.block ? r.block.toLocaleString() : "—") + '</td>';
+        h += '<td>' + (r.behind != null ? r.behind.toLocaleString() : "—") + '</td>';
+        h += '<td><span class="toggle" onclick="var d=document.getElementById(\'detail-'+r.id+'\');d.style.display=d.style.display===\'block\'?\'none\':\'block\'">details</span></td>';
+        h += '</tr>';
+        h += '<tr><td colspan="6" style="padding:0"><div class="detail" id="detail-' + r.id + '">';
+        h += '<b>Reason:</b> ' + esc(r.reason) + '<br>';
+        h += '<b>Next step:</b> ' + esc(r.next_step) + '<br>';
+        if (r.error) h += '<b>Probe error:</b> ' + esc(r.error.replace(/_/g," ")) + '<br>';
+        h += '<b>Submission ID:</b> ' + r.id + '<br>';
+        h += '<b>Check status:</b> <a href="/submission/status?host=' + encodeURIComponent(r.host) + '&port=' + r.port + '">/submission/status</a>';
+        h += '</div></td></tr>';
+      }
+      h += '</tbody></table>';
+      h += '<footer>Demos Network Oracle &middot; Community nodes are not part of canonical network truth until approved. Inclusion does not imply endorsement. &middot; <a href="/">Home</a> &middot; <a href="/submit">Submit</a></footer>';
+      h += '</main></body></html>';
+      res.writeHead(200, {"Content-Type":"text/html; charset=utf-8"});
+      res.end(h);
     } else if (req.url && req.url.indexOf("/submission/status") === 0) {
       var stUrl = new URL(req.url, "http://d");
       var stHost = (stUrl.searchParams.get("host") || "").trim();
