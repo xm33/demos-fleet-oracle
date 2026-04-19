@@ -2257,7 +2257,7 @@ function generatePrometheusMetrics(fleetData) {
         h += '</div></td></tr>';
       }
       h += '</tbody></table>';
-      h += '<footer>Demos Network Oracle &middot; Community nodes are not part of canonical network truth until approved. Inclusion does not imply endorsement. &middot; <a href="/">Home</a> &middot; <a href="/submit">Submit</a></footer>';
+      h += '<div style="margin-top:40px;padding-top:24px;border-top:1px solid var(--border)"><h2 style="font-family:var(--mono);font-size:16px;font-weight:600;margin:0 0 4px">Fleet Nodes</h2><p class="sub" style="margin-bottom:18px">Reference-only nodes operated by CypherX33, shown for transparency. These do not define canonical public truth.</p><table><thead><tr><th>Node</th><th>Host</th></tr></thead><tbody>';for(var fi=0,fk=Object.keys(EXPECTED_FLEET);fi<fk.length;fi++){var fname=fk[fi];h+='<tr><td>'+esc(fname)+'</td><td style="color:var(--text-secondary)">'+esc(EXPECTED_FLEET[fname].host)+':'+EXPECTED_FLEET[fname].port+'</td></tr>';}h+='</tbody></table></div>';h += '<footer>Demos Network Oracle &middot; Community nodes are not part of canonical network truth until approved. Inclusion does not imply endorsement. &middot; <a href="/">Home</a> &middot; <a href="/submit">Submit</a></footer>';
       h += '</main></body></html>';
       res.writeHead(200, {"Content-Type":"text/html; charset=utf-8"});
       res.end(h);
