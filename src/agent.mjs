@@ -636,10 +636,16 @@ function computeCanonicalState() {
   }
 
   var confidence = "clear";
-  if (data_quality === "insufficient") { confidence = "uncertain"; }
-  else if (pubReachable >= 2) {
+  var confidenceReason = "Observed public signals agree";
+  if (data_quality === "insufficient") {
+    confidence = "uncertain";
+    confidenceReason = "Insufficient reachable public nodes to cross-check";
+  } else if (pubReachable >= 2) {
     var pubBlocks = pubOnline.map(function(n) { return n.block; }).filter(Boolean);
-    if (pubBlocks.length >= 2 && Math.max.apply(null, pubBlocks) - Math.min.apply(null, pubBlocks) > 50) confidence = "uncertain";
+    if (pubBlocks.length >= 2 && Math.max.apply(null, pubBlocks) - Math.min.apply(null, pubBlocks) > 50) {
+      confidence = "uncertain";
+      confidenceReason = "Reachable public nodes report widely different block heights";
+    }
   }
 
   var publicActiveIncs = Object.values(activeIncidents).filter(function(inc) {
@@ -710,7 +716,11 @@ function computeCanonicalState() {
 
   var summary;
   if (status === "unknown") summary = "Insufficient data — fewer than 2 public nodes reachable";
-  else if (status === "stable" && publicIncidentCount === 0) summary = "Network stable; " + pubReachable + "/" + pubTotal + " public nodes currently synced";
+  else if (status === "stable" && publicIncidentCount === 0) {
+    if (pubReachable === pubTotal) summary = "Network operable. All " + pubTotal + " public nodes reachable and aligned.";
+    else if (pubReachable === 2) summary = "Network operable. 2 of " + pubTotal + " public nodes reachable; both aligned.";
+    else summary = "Network operable. " + pubReachable + " of " + pubTotal + " public nodes reachable; all reachable nodes aligned.";
+  }
   else if (status === "degraded") {
     var offCount = pubTotal - pubReachable;
     summary = offCount > 0 ? offCount + " of " + pubTotal + " public node(s) offline, agreement " + agreement.state : publicIncidentCount + " active incident(s), agreement " + agreement.state;
@@ -723,15 +733,15 @@ function computeCanonicalState() {
   else if (status === "degraded") statusReason = pubReachable === 1 ? "A public node is advancing; broader visibility is limited" : max_incident_severity === "warning" ? "Warning-level incidents active" : "Agreement reduced among reachable nodes";
   else statusReason = "Insufficient data to assess network state";
   var riskFactors = [];
-  if (pubTotal > 2 && pubTotal - pubReachable > 1) riskFactors.push("reduced public node redundancy (" + pubReachable + "/" + pubTotal + " reachable)");
+  if (pubTotal > 2 && pubTotal - pubReachable > 1) riskFactors.push("Only " + pubReachable + " of " + pubTotal + " public nodes reachable — limited cross-checking");
   if (max_incident_severity === "warning") riskFactors.push("warning-level incidents active");
   if (max_incident_severity === "critical") riskFactors.push("critical incidents active");
   if (confidence === "uncertain") riskFactors.push("conflicting signals from observed nodes");
   if (agreement.state === "moderate") riskFactors.push("agreement is moderate, not strong");
   var agreementReason = "";
   if (agreement.state === "unknown") agreementReason = "Fewer than 2 reachable nodes";
-  else agreementReason = agreement.aligned_nodes + "/" + agreement.total_nodes + " reachable nodes within 25 blocks of median (spread: " + agreement.block_spread + ")";
-  return { status: status, trend: trend, risk: risk, data_quality: data_quality, confidence: confidence, agreement: agreement, active_incidents: publicIncidentCount, max_incident_severity: max_incident_severity, summary: summary, status_reason: statusReason, risk_factors: riskFactors, agreement_reason: agreementReason, staleness_seconds: stalenessSeconds, last_updated: new Date().toISOString(), api_version: "1.0" };
+  else agreementReason = agreement.aligned_nodes + " of " + agreement.total_nodes + " reachable nodes within ±25 blocks of median (spread: " + agreement.block_spread + " blocks)";
+  return { status: status, trend: trend, risk: risk, data_quality: data_quality, confidence: confidence, confidence_reason: confidenceReason, agreement: agreement, active_incidents: publicIncidentCount, max_incident_severity: max_incident_severity, summary: summary, status_reason: statusReason, risk_factors: riskFactors, agreement_reason: agreementReason, staleness_seconds: stalenessSeconds, last_updated: new Date().toISOString(), api_version: "1.0" };
 }
 
 // M3: Record public node observation snapshot
@@ -1839,6 +1849,7 @@ function generatePrometheusMetrics(fleetData) {
         api_version: canonical.api_version,
         status_reason: canonical.status_reason,
         risk_factors: canonical.risk_factors,
+        confidence_reason: canonical.confidence_reason,
         agreement_reason: canonical.agreement_reason,
         // === Derived ===
         reason: healthDecision.reason,
@@ -1993,6 +2004,7 @@ function generatePrometheusMetrics(fleetData) {
         summary: canonical.summary,
         status_reason: canonical.status_reason,
         risk_factors: canonical.risk_factors,
+        confidence_reason: canonical.confidence_reason,
         agreement_reason: canonical.agreement_reason,
         staleness_seconds: canonical.staleness_seconds,
         last_updated: canonical.last_updated,
