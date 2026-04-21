@@ -231,15 +231,6 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
       <tbody id="vtable-body"><tr><td colspan="7" class="loading">Loading...</td></tr></tbody>
     </table>
     <div style="margin-top:8px;font-size:10px;color:var(--text-secondary);opacity:0.6;font-family:var(--mono)">Rolling observed history. Early values may refine over time.</div>
-
-    <div id="discovered-section" style="display:none;margin-top:28px">
-      <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text-secondary);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Discovered Validators</div>
-      <div style="font-size:11px;color:var(--text-secondary);opacity:0.6;margin-bottom:10px">Seen by the Oracle but not yet included in the monitored public set.</div>
-      <table class="vtable" style="opacity:0.65">
-        <thead><tr><th>Address</th><th>Status</th><th>Block</th><th>Sync</th></tr></thead>
-        <tbody id="discovered-body"></tbody>
-      </table>
-    </div>
   </section>
   <section class="section" id="incidents">
     <div class="section-title">Incidents</div>
@@ -393,15 +384,12 @@ async function fetchData() {
       '<div class="growth-card"><div class="gc-value">'+(vg.monitored||0)+'</div><div class="gc-label">Monitored</div></div>';
     document.getElementById('growth-sub').textContent='+'+(vg.today||0)+' today \u00b7 +'+(vg.week||0)+' this week';
 
-    // Split: monitored vs discovered validators
+    // Validators: render monitored only (discovered lives on /community)
     var validators=vg.validators||[];
     var nodes=health.publicNodes||[];
     var median=ag.median_block||0;
     var tbody=document.getElementById('vtable-body');
-    var dbody=document.getElementById('discovered-body');
-    var dsection=document.getElementById('discovered-section');
     var monitored=validators.filter(function(v){return v.monitored;});
-    var discovered=validators.filter(function(v){return !v.monitored;});
     // Main table: monitored only
     if(monitored.length===0){
       tbody.innerHTML='<tr><td colspan="7">No monitored validators</td></tr>';
@@ -427,21 +415,6 @@ async function fetchData() {
       });
       tbody.innerHTML=h;
     }
-    // Discovered table: not yet monitored
-    if(discovered.length>0){
-      dsection.style.display='';
-      var dh='';
-      discovered.forEach(function(v){
-        var syncColor=v.sync_pct>=50?'var(--degraded)':'var(--unstable)';
-        if(v.sync_pct>=99.9) syncColor='var(--improving)';
-        dh+='<tr><td>'+esc(v.display||'\u2014')+'</td>'+
-          '<td><span class="status-dot dot-syncing"></span>syncing</td>'+
-          '<td>'+(v.block?v.block.toLocaleString():'\u2014')+'</td>'+
-          '<td style="color:'+syncColor+'">'+v.sync_pct+'%</td></tr>';
-      });
-      dbody.innerHTML=dh;
-    } else { dsection.style.display='none'; }
-
     // Incidents
     var incCount=document.getElementById('inc-count');
     incCount.textContent=org.active_incidents!=null?org.active_incidents:'\u2014';
