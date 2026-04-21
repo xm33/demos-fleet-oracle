@@ -2228,7 +2228,10 @@ function generatePrometheusMetrics(fleetData) {
       h += '.toggle:hover{color:var(--text-primary)}';
       h += 'a{color:#c9d1d9;text-decoration:none}a:hover{text-decoration:underline}';
       h += '.doc-nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);background:rgba(16,16,16,0.92);border-bottom:1px solid var(--border);height:52px;display:flex;align-items:center}';
-      h += '.doc-nav-inner{max-width:980px;width:100%;margin:0 auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between}';
+      h += '.doc-nav-inner{max-width:980px;width:100%;margin:0 auto;padding:0 28px;display:flex;align-items:center;gap:12px}';
+      h += '.doc-nav-left{order:1}';
+      h += '.doc-nav-right{order:2;margin-left:auto}';
+      h += '.doc-nav-inner > .nav-live{order:3}';
       h += '.doc-nav-left,.doc-nav-right{display:flex;align-items:center;gap:18px}';
       h += '.doc-nav-brand{color:var(--brand,#2B36D9);text-decoration:none;font-family:var(--mono);font-size:13px;letter-spacing:2.6px;font-weight:700;display:inline-flex;align-items:center;gap:8px;text-transform:uppercase}';
       h += '.doc-nav-brand:hover{text-decoration:none;opacity:0.9}';
@@ -2239,7 +2242,7 @@ function generatePrometheusMetrics(fleetData) {
       h += '.doc-nav-link[aria-current="page"]:hover{opacity:0.8;text-decoration:none}';
       h += '.nav-live{font-size:10px;font-family:var(--mono);padding:4px 9px;border:1px solid rgba(34,197,94,0.16);border-radius:999px;color:var(--text-secondary);display:inline-flex;align-items:center;gap:5px;letter-spacing:0.45px}';
       h += '.nav-live-dot{width:5px;height:5px;border-radius:50%;background:#22c55e;opacity:0.8}';
-      h += '@media(max-width:640px){.doc-nav{height:auto;min-height:56px;padding:10px 0}.doc-nav-inner{padding:0 16px;flex-wrap:wrap;gap:8px}.doc-nav-left{width:100%;justify-content:flex-start}.doc-nav-right{width:100%;gap:12px;flex-wrap:wrap;justify-content:flex-start}.doc-nav-link{font-size:10px}}';
+      h += '@media(max-width:640px){.doc-nav{height:auto;min-height:56px;padding:10px 0}.doc-nav-inner{padding:0 16px;flex-wrap:wrap;gap:8px;row-gap:10px}.doc-nav-left{flex:0 0 auto;order:1}.doc-nav-inner > .nav-live{flex:0 0 auto;order:2;margin-left:auto;font-size:9px;padding:3px 7px;letter-spacing:0.3px}.doc-nav-right{flex:1 1 100%;order:3;gap:10px;flex-wrap:wrap;justify-content:flex-start}.doc-nav-link{font-size:10px}}';
       h += '.oracle-hero-submit{font-size:10px;font-family:var(--mono);padding:3px 9px;border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:rgba(255,255,255,0.7);text-decoration:none;letter-spacing:0.04em;transition:all 0.2s}';
       h += '.oracle-hero-submit:hover{color:var(--improving);border-color:rgba(45,212,160,0.3)}';
       h += 'footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text-secondary);font-size:11px;opacity:0.5}';
@@ -2254,8 +2257,9 @@ function generatePrometheusMetrics(fleetData) {
       h += '<a href="/agent" class="doc-nav-link">Agent</a>';
       h += '<a href="/sources" class="doc-nav-link">Sources</a>';
       h += '<a href="/community" class="doc-nav-link" aria-current="page">Community</a>';
+      h += '</div>';
       h += '<span class="nav-live"><span class="nav-live-dot"></span>ORACLE LIVE</span>';
-      h += '</div></div></nav>';
+      h += '</div></nav>';
       h += '<main>';
       h += '<h1>Community Node Onboarding</h1>';
       h += '<div style="margin-bottom:18px"><a href="/submit" class="oracle-hero-submit">OPEN: NODE SUBMISSION</a></div><p class="sub">Community validator nodes during onboarding and approval.</p>';

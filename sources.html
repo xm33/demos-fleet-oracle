@@ -35,7 +35,10 @@ a:hover{text-decoration:underline}
 .note{margin:16px 0;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text-secondary);font-size:12px;line-height:1.6}
 footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text-secondary);font-size:12px;opacity:0.6}
 .doc-nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);background:rgba(16,16,16,0.92);border-bottom:1px solid var(--border);height:52px;display:flex;align-items:center}
-.doc-nav-inner{max-width:980px;width:100%;margin:0 auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between}
+.doc-nav-inner{max-width:980px;width:100%;margin:0 auto;padding:0 28px;display:flex;align-items:center;gap:12px}
+.doc-nav-left{order:1}
+.doc-nav-right{order:2;margin-left:auto}
+.doc-nav-inner > .nav-live{order:3}
 .doc-nav-left,.doc-nav-right{display:flex;align-items:center;gap:18px}
 .doc-nav-brand{color:var(--brand,#2B36D9);text-decoration:none;font-family:var(--mono);font-size:13px;letter-spacing:2.6px;font-weight:700;display:inline-flex;align-items:center;gap:8px;text-transform:uppercase}
 .doc-nav-brand:hover{text-decoration:none;opacity:0.9}
@@ -49,7 +52,7 @@ footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);color
 .doc-nav-link:hover{color:var(--text-primary);text-decoration:none}
 .doc-nav-link.active{color:var(--text-primary)}
 @media(max-width:720px){main{padding:20px 16px 64px}h1{font-size:24px}h2{font-size:15px}.flow{flex-direction:column;align-items:flex-start;gap:6px}}
-@media(max-width:640px){.doc-nav{height:auto;min-height:56px;padding:10px 0}.doc-nav-inner{padding:0 16px;flex-wrap:wrap;gap:8px}.doc-nav-left{width:100%;justify-content:flex-start}.doc-nav-right{width:100%;gap:12px;flex-wrap:wrap;justify-content:flex-start}.doc-nav-link{font-size:10px}}
+@media(max-width:640px){.doc-nav{height:auto;min-height:56px;padding:10px 0}.doc-nav-inner{padding:0 16px;flex-wrap:wrap;gap:8px;row-gap:10px}.doc-nav-left{flex:0 0 auto;order:1}.doc-nav-inner > .nav-live{flex:0 0 auto;order:2;margin-left:auto;font-size:9px;padding:3px 7px;letter-spacing:0.3px}.doc-nav-right{flex:1 1 100%;order:3;gap:10px;flex-wrap:wrap;justify-content:flex-start}.doc-nav-link{font-size:10px}}
 </style></head><body>
 <nav class="doc-nav">
   <div class="doc-nav-inner">
@@ -61,8 +64,8 @@ footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);color
       <a href="/agent" class="doc-nav-link">Agent</a>
       <a href="/sources" class="doc-nav-link" aria-current="page">Sources</a>
       <a href="/community" class="doc-nav-link">Community</a>
-      <span class="nav-live"><span class="nav-live-dot"></span>ORACLE LIVE</span>
     </div>
+    <span class="nav-live"><span class="nav-live-dot"></span>ORACLE LIVE</span>
   </div>
 </nav>
 <main>
