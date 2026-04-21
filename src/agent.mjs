@@ -2313,6 +2313,43 @@ function generatePrometheusMetrics(fleetData) {
           }
         }
       } catch(e) {}
+      // Discovered Validators - reference section (peer-crawled, not yet monitored)
+      // Call getValidatorGrowth() directly - same source /health uses.
+      // latestHealthData does NOT contain validator_growth; that field is
+      // built fresh at request time by the /health handler.
+      var discoveredList = [];
+      try {
+        var vgrow = getValidatorGrowth();
+        if (vgrow && Array.isArray(vgrow.validators)) {
+          discoveredList = vgrow.validators.filter(function(v){ return !v.monitored; });
+        }
+      } catch(e) { discoveredList = []; }
+      h += '<div style="margin-top:40px;padding-top:24px;border-top:1px solid var(--border)">';
+      h += '<h2 style="font-family:var(--mono);font-size:16px;font-weight:600;letter-spacing:-0.02em;margin:0 0 4px">Discovered Validators</h2>';
+      h += '<p class="sub" style="margin-bottom:18px">Validators the Oracle has seen via peer crawling but has not yet formally added to monitoring. Shown here for transparency; added to the monitored set manually once they reach the network head. Not community-submitted.</p>';
+      if (discoveredList.length === 0) {
+        h += '<p style="color:var(--text-secondary);font-size:12px;font-family:var(--mono);opacity:0.6;padding:12px 0">No discovered validators at this time.</p>';
+      } else {
+        h += '<table style="opacity:0.8"><thead><tr><th>Address</th><th>Status</th><th>Block</th><th>Sync</th></tr></thead><tbody>';
+        for (var dvi = 0; dvi < discoveredList.length; dvi++) {
+          var dv = discoveredList[dvi];
+          var dvOnline = dv.online === true;
+          var dvStatusColor = dvOnline ? "#d97706" : "#98a2b3";
+          var dvStatusBg = dvOnline ? "rgba(217,119,6,0.08)" : "rgba(152,162,179,0.08)";
+          var dvStatusText = dvOnline ? "syncing" : "offline";
+          var dvSyncPct = dv.sync_pct != null ? dv.sync_pct : 0;
+          var dvSyncColor = dvSyncPct >= 99.9 ? "#2dd4a0" : dvSyncPct >= 50 ? "#d97706" : "#EF4444";
+          h += '<tr>';
+          h += '<td>' + esc(dv.display || "\u2014") + '</td>';
+          h += '<td><span class="pill" style="color:' + dvStatusColor + ';background:' + dvStatusBg + ';border-color:' + dvStatusColor + '44">' + dvStatusText + '</span></td>';
+          h += '<td>' + (dv.block ? dv.block.toLocaleString() : "\u2014") + '</td>';
+          h += '<td style="color:' + dvSyncColor + '">' + dvSyncPct + '%</td>';
+          h += '</tr>';
+        }
+        h += '</tbody></table>';
+      }
+      h += '</div>';
+
       h += '<div style="margin-top:40px;padding-top:24px;border-top:1px solid var(--border)">';
       h += '<h2 style="font-family:var(--mono);font-size:16px;font-weight:600;letter-spacing:-0.02em;margin:0 0 4px">Reference Fleet Diagnostics</h2>';
       h += '<p class="sub" style="margin-bottom:18px">Reference-only nodes operated by XM33. Shown with live diagnostics from the Oracle\'s observation cycle. These do not define canonical public truth.</p>';
