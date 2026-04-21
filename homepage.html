@@ -52,10 +52,6 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
 .oracle-hero-submit { font-size:10px; font-family:var(--mono); padding:3px 9px; border:1px solid rgba(255,255,255,0.15); border-radius:999px; color:rgba(255,255,255,0.7); text-decoration:none; letter-spacing:0.04em; transition:all 0.2s; }
 .oracle-hero-submit:hover { color:var(--improving); border-color:rgba(45,212,160,0.3); }
 .oracle-status { font-family:var(--mono); font-size:36px; font-weight:600; letter-spacing:-0.03em; line-height:1.02; margin-bottom:16px; color:var(--text-primary); }
-.oracle-trustline { font-size:14px; line-height:1.5; color:var(--text-secondary); margin-bottom:0; display:flex; gap:0; align-items:center; flex-wrap:wrap; }
-.tl-label { color:var(--text-secondary); }
-.tl-value { color:var(--text-primary); font-weight:500; font-family:var(--mono); font-size:13px; margin-left:4px; }
-.tl-sep { color:var(--text-secondary); padding:0 8px; opacity:0.5; }
 .hero-summary { font-family:var(--mono); font-size:13px; color:var(--text-secondary); margin-top:14px; opacity:0.82; max-width:72ch; }
 .oracle-staleness { font-size:12px; color:var(--text-secondary); opacity:0.7; margin-top:8px; font-family:var(--mono); }
 
@@ -106,7 +102,6 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
 .api-attestation { margin-top:14px; font-size:11px; color:var(--text-secondary); opacity:0.75; font-family:var(--mono); line-height:1.6; }
 .api-attestation a { color:var(--text-primary); opacity:0.9; text-decoration:none; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:1px; }
 .api-attestation a:hover { border-bottom-color:var(--improving); }
-.trust-lead { font-size:13px; color:var(--text-primary); line-height:1.6; margin:6px 0 18px; max-width:72ch; font-family:var(--mono); opacity:0.92; }
 .api-endpoints { display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
 .api-link { font-family:var(--mono); font-size:13px; color:var(--text-primary); text-decoration:none; padding:7px 12px; border:1px solid var(--border); border-radius:6px; transition:border-color 0.2s; }
 .api-link:hover { border-color:#444; }
@@ -146,19 +141,18 @@ body { position:relative; }
   .navbar-left { width:auto; flex:1 1 auto; justify-content:flex-start; order:1; }
   .navbar-right { width:auto; flex:0 0 auto; justify-content:flex-end; gap:8px; order:2; }
   .nav-links { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; width:100%; flex-basis:100%; order:3; margin-top:8px; }
-  .nav-links a { text-align:center; padding:6px 4px; background:#0d0d0d; border:1px solid var(--border); border-radius:5px; font-size:9.5px; letter-spacing:0.4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .nav-links a { text-align:center; padding:6px 2px; background:#0d0d0d; border:1px solid var(--border); border-radius:5px; font-size:9px; letter-spacing:0.2px; white-space:nowrap; overflow:hidden; }
   .nav-links a:hover { border-color:#333; }
-  .nav-live { display:none; }
+  /* ORACLE LIVE sits next to logo on mobile row 1 */
+  .nav-live { display:inline-flex; font-size:9px; padding:3px 7px; letter-spacing:0.3px; }
   .demos-brand-btn { display:none; }
   .cards,.agreement-grid { grid-template-columns:repeat(2,1fr); }
   .section-title { text-align:center; }
   .ag-sub { display:block; font-size:10px; color:var(--text-secondary); opacity:0.7; font-family:var(--mono); margin-top:6px; line-height:1.3; }
   .hero { text-align:center; }
   .oracle-kicker-row { justify-content:center; }
-  .oracle-trustline { align-items:center; justify-content:center; }
   .oracle-staleness { text-align:center; }
   .oracle-status { font-size:26px; }
-  .oracle-trustline { font-size:12px; flex-direction:column; align-items:flex-start; }
   .oracle-kicker-row { flex-wrap:wrap; gap:8px; }
   .oracle-kicker { font-size:11px; }
   .oracle-hero-submit { display:none; }
@@ -202,7 +196,6 @@ body { position:relative; }
     </div>
     <div id="hero-status" class="oracle-status loading">Loading...</div>
     <div id="hero-summary" class="hero-summary"></div>
-    <div id="hero-trustline" class="oracle-trustline"></div>
     <div id="hero-staleness" class="oracle-staleness"></div>
   </section>
   <section class="section">
@@ -257,7 +250,6 @@ body { position:relative; }
 
   <section class="section">
     <div class="section-title">Why trust this Oracle</div>
-    <div class="trust-lead">Every Oracle assessment is attested on-chain via SuperColony every 20 minutes. Outputs are timestamped and independently verifiable.</div>
     <div class="cards">
       <div class="signal-card"><div class="signal-value" style="font-size:14px;letter-spacing:0.04em;color:var(--text-primary)">Public</div><div class="signal-label">Reads publicly observable validator signals and rolling history.</div></div>
       <div class="signal-card"><div class="signal-value" style="font-size:14px;letter-spacing:0.04em;color:var(--text-primary)">Explicit</div><div class="signal-label">Status, risk, agreement, and confidence follow published methodology.</div></div>
@@ -332,19 +324,6 @@ async function fetchData() {
     hs.classList.remove('loading');
     var lb=document.querySelector('.oracle-hero-live');
     if(lb){lb.innerHTML='<span class="hero-dot"></span>ORACLE LIVE';lb.style.borderColor='rgba(34,197,94,0.2)';}
-
-    // Trust line with incidents inline
-    var incVal=org.active_incidents!=null?org.active_incidents:'\u2014';
-    var incColor=org.active_incidents>0?'var(--degraded)':'var(--text-primary)';
-    var incWeight=org.active_incidents>0?'700':'500';
-    document.getElementById('hero-trustline').innerHTML=
-      '<span class="tl-label">risk:</span><span class="tl-value" style="color:'+cardColor(org.risk)+'">'+(org.risk||'\u2014').toLowerCase()+'</span>'+
-      '<span class="tl-sep">\u00b7</span>'+
-      '<span class="tl-label">confidence:</span><span class="tl-value" style="color:'+cardColor(org.confidence)+'">'+(org.confidence||'\u2014').toLowerCase()+'</span>'+
-      '<span class="tl-sep">\u00b7</span>'+
-      '<span class="tl-label">data:</span><span class="tl-value" style="color:'+cardColor(org.data_quality)+'">'+(org.data_quality||'\u2014').toLowerCase()+'</span>'+
-      '<span class="tl-sep">\u00b7</span>'+
-      '<span class="tl-label">incidents:</span><span class="tl-value" style="color:'+incColor+';font-weight:'+incWeight+'">'+incVal+'</span>';
 
     document.getElementById('hero-summary').textContent=org.status_reason||org.summary||'';
     document.getElementById('hero-staleness').textContent='Updated '+(org.staleness_seconds!=null?org.staleness_seconds+'s ago':'\u2014');
