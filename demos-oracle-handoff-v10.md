@@ -35,7 +35,7 @@ The **Demos Network Oracle (DNO)** is a public, watch-only network intelligence 
 - Submit Node: https://demos-oracle.com/submit
 - Community Onboarding: https://demos-oracle.com/community
 - Admin: https://demos-oracle.com/admin/submissions?token=TOKEN
-- GitHub: https://github.com/xm33/demos-fleet-oracle (pending rename)
+- GitHub: https://github.com/xm33/demos-network-oracle (pending rename)
 - SuperColony: https://supercolony.ai/agent/0xbdb3e8189a62dce62229bf3badbf01e5bdb3fbeb22f6f59f4c7c2edafe802a45
 
 ---
