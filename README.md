@@ -1,120 +1,87 @@
-# Demos Fleet Oracle
+# Demos Network Oracle
 
-Autonomous health oracle for the [Demos Network](https://demos.network) validator fleet. Monitors validator nodes every 20 minutes, publishes attested health data on-chain via [SuperColony](https://supercolony.ai), and serves a public API + dashboard.
+**Live at:** [demos-oracle.com](https://demos-oracle.com)
+
+The Demos Network Oracle (DNO) is a watch-only network intelligence service for the [Demos blockchain](https://demos.network) testnet. It monitors public validator nodes, tracks network agreement, detects incidents, publishes attested health data on-chain via [SuperColony](https://supercolony.ai), and serves a public API.
+
+Built by [XM33](https://demos-oracle.com), independently of the Demos team.
+
+## Core Principles
+
+- **Watch-only.** The Oracle observes the network; it does not validate, vote, or participate in consensus.
+- **Public-first.** Canonical truth comes from public validator nodes. Fleet-internal data is reference-only.
+- **Observation ≠ endorsement.** Being monitored by the Oracle is not a signal of approval.
+- **Explainability.** Every categorical signal comes with a paired reason string.
 
 ## Live Endpoints
 
 | Endpoint | Description |
 |----------|-------------|
-| [/dashboard](https://demos-oracle.com/dashboard) | Live fleet dashboard — auto-refresh 20s |
-| [/health](https://demos-oracle.com/health) | Full fleet snapshot — signals, incidents, reputation |
-| [/incidents](https://demos-oracle.com/incidents) | Incident log with severity and duration |
-| [/reputation](https://demos-oracle.com/reputation) | Per-node reputation scores 0-100 (24h window) |
-| [/sentinel](https://demos-oracle.com/sentinel) | Anomaly detector status |
-| [/version](https://demos-oracle.com/version) | Running version vs latest GitHub commit |
-| [/federate](https://demos-oracle.com/federate) | Prometheus metrics endpoint |
-| [/history](https://demos-oracle.com/history) | Last 72 health cycles (24h) |
-| [/peers](https://demos-oracle.com/peers) | Known + discovered validators |
-| [/badge](https://demos-oracle.com/badge) | SVG status badge |
-| [/docs](https://demos-oracle.com/docs) | Full API documentation |
+| [/](https://demos-oracle.com/) | Homepage — live status, agreement, incidents |
+| [/organism](https://demos-oracle.com/organism) | Canonical JSON state (primary machine-readable endpoint) |
+| [/health](https://demos-oracle.com/health) | Network health snapshot |
+| [/methodology](https://demos-oracle.com/methodology) | How the Oracle computes what it publishes |
+| [/agent](https://demos-oracle.com/agent) | Agent/consumer integration guide |
+| [/sources](https://demos-oracle.com/sources) | Data provenance and monitoring sources |
+| [/community](https://demos-oracle.com/community) | Community node onboarding (reference surface) |
+| [/submit](https://demos-oracle.com/submit) | Submit a community node for observation |
+
+## Canonical data model
+
+The Oracle publishes seven canonical fields via `/organism`:
+
+| Field | Type | Paired reason |
+|---|---|---|
+| `status` | operable / partial / degraded / unknown | `status_reason` |
+| `trend` | improving / stable / worsening | — |
+| `risk` | low / elevated / high | `risk_factors` |
+| `data_quality` | sufficient / partial / insufficient | — |
+| `confidence` | clear / provisional | `confidence_reason` |
+| `agreement` | strong / split / unknown | `agreement_reason` |
+| `active_incidents` | integer | (incident list) |
+
+Status = **operability** of the network right now. Risk = **resilience** under near-term stress.
 
 ## Quick Start
 
-### Check fleet health
+### Read current state
+
 ```bash
-curl -s https://demos-oracle.com/health | jq '{recommendation, signals, fleet_size, healthy: .fleet.healthy}'
+curl -s https://demos-oracle.com/organism | jq '{status, risk, agreement, summary}'
 ```
 
-### Get machine-readable signals
+### Check if network is operable
+
 ```bash
-curl -s https://demos-oracle.com/health | jq '.signals'
+curl -s https://demos-oracle.com/organism | jq -r '.status'
 ```
 
-### Filter warnings and criticals only
+### Full health snapshot
+
 ```bash
-curl -s https://demos-oracle.com/health | jq '.signals | map(select(.severity == "warning" or .severity == "critical"))'
+curl -s https://demos-oracle.com/health | jq
 ```
-
-### Check if safe to propose
-```bash
-curl -s https://demos-oracle.com/health | jq '.recommendation.safe_to_propose'
-```
-
-### Embed status badge
-```markdown
-![Fleet Status](https://demos-oracle.com/badge)
-```
-
-### Prometheus scraping
-```yaml
-- job_name: demos-fleet-oracle
-  scrape_interval: 60s
-  metrics_path: /federate
-  static_configs:
-    - targets: ['demos-oracle.com']
-```
-
-## Signal Schema
-
-```json
-{
-  "type": "block_lag",
-  "severity": "info | warning | critical",
-  "nodes": ["n4"],
-  "value": 31,
-  "message": "n4 is 31 blocks behind fleet"
-}
-```
-
-Signal types: `all_healthy`, `node_offline`, `block_lag`, `identity_mismatch`, `not_ready`, `not_synced`, `chain_stall`, `low_online_count`, `block_divergence`, `public_node_offline`, `public_network_block`, `discovered_validators`
 
 ## Architecture
 
-3-instance setup across 3 physical locations:
+- Single-file Node/Bun service: `src/agent.mjs` (~3,500 lines)
+- Runtime: Bun
+- Monitoring interval: 20 seconds
+- Publishing interval: 20 minutes
+- On-chain attestation: via SuperColony every ~1–6 hours
 
-| Instance | Role | Behavior |
-|----------|------|----------|
-| n3 (primary) | Always publishes | Main oracle, serves public API |
-| n1 (validator) | Watchdog | Publishes only if primary silent |
-| m1 (backup) | Independent | Always publishes independently |
+## Running your own
 
-## Features
+Not currently a supported use case — the Oracle is operated as a singular public service. If you want to run a modified instance for research or auditing, see [/methodology](https://demos-oracle.com/methodology) and the source in `src/agent.mjs`.
 
-- Machine-readable `signals[]` array in `/health`
-- Recommendation engine: `SAFE` / `CAUTION` / `UNSAFE`
-- SQLite-backed incident log with severity tiers
-- Sentinel v1: block stall, persistent lag, flapping, online drop, divergence detection
-- DAHR-attested on-chain publishing via SuperColony
-- Telegram alerts with 6-hour deduplication
-- Prometheus federation endpoint
-- Per-node reputation scores (0-100, 24h window)
-- Auto-refresh dark-theme dashboard
-- Validator auto-discovery via peerlist crawling
+## Reporting issues
 
-## Running Your Own Instance
-
-```bash
-git clone https://github.com/xm33/demos-fleet-oracle.git
-cd demos-fleet-oracle
-bun install
-cp .env.example .env
-bun run src/agent.mjs
-```
-
-Requirements: [Bun](https://bun.sh) runtime, Demos Network node running locally.
-
-## Stack
-
-- Runtime: [Bun](https://bun.sh)
-- Chain: [Demos Network](https://demos.network)
-- Oracle layer: [SuperColony](https://supercolony.ai)
-- DB: SQLite (bun:sqlite)
-- Anomaly detection: Sentinel v1
-
-## Agent Wallet
-
-`0xbdb3e8189a62dce62229bf3badbf01e5bdb3fbeb22f6f59f4c7c2edafe802a45`
+Bugs, data inconsistencies, or security issues: see [SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
+
+---
+
+**Attribution.** This repository and the Oracle service are built and maintained by XM33, independent of the Demos team. Inclusion of a node in the Oracle's monitoring set does not imply endorsement by Demos or XM33.
