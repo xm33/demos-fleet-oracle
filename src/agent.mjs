@@ -229,6 +229,91 @@ const PUBLIC_NODES = {
 var PUBLIC_NODE_IDENTITIES = {};
 for (var _pn in PUBLIC_NODES) { PUBLIC_NODE_IDENTITIES[PUBLIC_NODES[_pn].identity] = _pn; }
 
+
+// Fleet fixnet registry — 7 XM33 fleet nodes + Kynesys anchor
+// Separate from PUBLIC_NODES (different network)
+const FIXNET_NODES = {
+  "kynesys-anchor": {
+    url: "http://node3.demos.sh:60001",
+    host: "node3.demos.sh",
+    identity: "0x412bee5548b43bc0a23429c06946c1eb990d900f6c0ed5c3ad001481e7f7a8ef",
+    source_type: "anchor",
+    trust_tier: "verified",
+    operator: "Kynesys",
+    joined_at: "2026-04-22"
+  },
+  "fleet-n1": {
+    url: "http://193.77.44.160:53550",
+    host: "193.77.44.160",
+    identity: "0x8f3abd366c7b846c1ee940f35d2d7ef7774dfe636e6284a32bf2c5a3e1b3ba05",
+    source_type: "fleet",
+    trust_tier: "verified",
+    operator: "XM33",
+    joined_at: "2026-04-22"
+  },
+  "fleet-n2": {
+    url: "http://193.77.44.160:54550",
+    host: "193.77.44.160",
+    identity: "0xbfda23d32dee055bda23f1e74a25abb7e33478da1b2013768e135cc2ed924f37",
+    source_type: "fleet",
+    trust_tier: "verified",
+    operator: "XM33",
+    joined_at: "2026-04-22"
+  },
+  "fleet-n3": {
+    url: "http://193.77.169.106:53550",
+    host: "193.77.169.106",
+    identity: "0x4ba486bc92263f2cb15608ed369eafbd576097e79194f0895c1e01d232aa4b52",
+    source_type: "fleet",
+    trust_tier: "verified",
+    operator: "XM33",
+    joined_at: "2026-04-22"
+  },
+  "fleet-n4": {
+    url: "http://193.77.50.180:54550",
+    host: "193.77.50.180",
+    identity: "0x848ae0759c5eba1974ec942b8e1fb4962e1b256ff89e93bdb6ad12ea58ad76a9",
+    source_type: "fleet",
+    trust_tier: "verified",
+    operator: "XM33",
+    joined_at: "2026-04-22"
+  },
+  "fleet-n5": {
+    url: "http://193.77.50.180:53550",
+    host: "193.77.50.180",
+    identity: "0x95cbd7147cf09dc46d91cd6ae8f2912ae0f597fac9c61d0b0c347a46374af80f",
+    source_type: "fleet",
+    trust_tier: "verified",
+    operator: "XM33",
+    joined_at: "2026-04-22"
+  },
+  "fleet-n6": {
+    url: "http://193.77.169.106:54550",
+    host: "193.77.169.106",
+    identity: "0x3ab3365e67583a89968082475816cf2f16f8f9a3b936a38513493d0c6b69f768",
+    source_type: "fleet",
+    trust_tier: "verified",
+    operator: "XM33",
+    joined_at: "2026-04-22"
+  },
+  "fleet-m1": {
+    url: "http://82.192.52.254:53550",
+    host: "82.192.52.254",
+    identity: "0x56b46be173e20f540401d079811e5b524903a197ae5d07824d0e70a22ee6e591",
+    source_type: "fleet",
+    trust_tier: "verified",
+    operator: "XM33",
+    joined_at: "2026-04-22"
+  }
+};
+
+var FIXNET_NODE_IDENTITIES = {};
+for (var _fn in FIXNET_NODES) { FIXNET_NODE_IDENTITIES[FIXNET_NODES[_fn].identity] = _fn; }
+
+let latestFixnetNodes = []; // updated each cycle
+let latestDiscoveredFixnet = []; // fixnet peers discovered via anchor peerlist crawl
+let fixnetObservedAt = null; // ms timestamp of last fixnet poll completion
+let fixnetCycleCounter = 0; // increments each cycle; used for rate-limited discovered probes
 const BLOCK_LAG_THRESHOLD = 3;
 const STALE_SECONDS_THRESHOLD = 120;
 const PROBE_TIMEOUT_MS = 5000;
@@ -379,6 +464,7 @@ function getValidatorGrowth() {
     for (var vi = 0; vi < dbRows.length; vi++) {
       var row = dbRows[vi];
       var identity = row.identity;
+      if (FIXNET_NODE_IDENTITIES[identity]) continue; // skip fixnet nodes (different network)
       var isMonitored = !!PUBLIC_NODE_IDENTITIES[identity];
       var display = (row.connection || "unknown").replace("http://", "");
       var block = null, online = false;
@@ -1407,6 +1493,206 @@ async function probePublicNodes() {
   return results;
 }
 
+async function probeFixnetNodes() {
+  var results = [];
+  for (var name in FIXNET_NODES) {
+    var node = FIXNET_NODES[name];
+    try {
+      var start = Date.now();
+      var res = await fetch(node.url + "/info", { signal: AbortSignal.timeout(5000) });
+      var latencyMs = Date.now() - start;
+      if (res.ok) {
+        var data = await res.json();
+        // For self-reported block, find this node's own entry in its peerlist
+        var block = null;
+        if (data.peerlist && Array.isArray(data.peerlist)) {
+          var selfEntry = data.peerlist.find(function(p) { return p.identity === node.identity; });
+          if (selfEntry && selfEntry.sync) {
+            block = selfEntry.sync.block;
+          } else if (data.peerlist[0] && data.peerlist[0].sync) {
+            // Fallback: first peer (anchor convention)
+            block = data.peerlist[0].sync.block;
+          }
+        }
+        var identityMatch = data.identity === node.identity;
+        results.push({
+          name: name,
+          url: node.url,
+          host: node.host,
+          identity: node.identity,
+          ok: true,
+          latencyMs: latencyMs,
+          block: block,
+          version: data.version || "?",
+          peers: data.peerlist ? data.peerlist.length : 0,
+          identityMatch: identityMatch,
+          source_type: node.source_type,
+          trust_tier: node.trust_tier,
+          operator: node.operator
+        });
+        // v7.2: crawl anchor's peerlist for new fixnet validators
+        if (node.source_type === "anchor") {
+          try {
+            var added = discoverFixnetValidators(data);
+            if (added > 0) log("  [fixnet-discovery] +" + added + " new peer(s) from anchor");
+          } catch (derr) { logError("  [fixnet-discovery] crawl failed: " + derr.message); }
+        }
+        log("  FixnetNode " + name + ": OK " + latencyMs + "ms block=" + (block || "?") + " peers=" + (data.peerlist ? data.peerlist.length : 0));
+      } else {
+        results.push({
+          name: name, url: node.url, host: node.host, identity: node.identity, ok: false,
+          error: "HTTP " + res.status,
+          source_type: node.source_type, trust_tier: node.trust_tier, operator: node.operator
+        });
+        log("  FixnetNode " + name + ": FAIL HTTP " + res.status);
+      }
+    } catch (err) {
+      results.push({
+        name: name, url: node.url, host: node.host, identity: node.identity, ok: false,
+        error: err.name === "TimeoutError" ? "Timeout" : err.message,
+        source_type: node.source_type, trust_tier: node.trust_tier, operator: node.operator
+      });
+      log("  FixnetNode " + name + ": FAIL " + err.message);
+    }
+  }
+  return results;
+}
+
+// --- v7.2 fixnet auto-discovery ---
+
+// Crawl the anchor's peerlist for unknown fixnet validators.
+// Called each cycle from probeFixnetNodes() after successful anchor probe.
+// Inserts/upserts into fixnet_validator_discoveries table.
+function discoverFixnetValidators(anchorInfoData) {
+  if (!anchorInfoData || !anchorInfoData.peerlist || !sharedDb) return 0;
+  var added = 0;
+  var now = Date.now();
+  for (var i = 0; i < anchorInfoData.peerlist.length; i++) {
+    var peer = anchorInfoData.peerlist[i];
+    var identity = peer && peer.identity;
+    if (!identity) continue;
+
+    // Skip known identities (monitored fixnet, monitored testnet, or known fleet)
+    if (FIXNET_NODE_IDENTITIES[identity]) continue;
+    if (PUBLIC_NODE_IDENTITIES[identity]) continue;
+    if (IDENTITY_TO_NAME && IDENTITY_TO_NAME[identity]) continue;
+
+    var connection = peer.connection && peer.connection.string ? peer.connection.string : null;
+    var block = peer.sync && peer.sync.block ? peer.sync.block : null;
+    var online = peer.status && peer.status.online ? 1 : 0;
+
+    try {
+      var existing = sharedDb.query("SELECT identity FROM fixnet_validator_discoveries WHERE identity = ?").get(identity);
+      if (!existing) {
+        sharedDb.run(
+          "INSERT INTO fixnet_validator_discoveries (identity, first_seen, last_seen, connection, online, last_block) VALUES (?, ?, ?, ?, ?, ?)",
+          [identity, now, now, connection, online, block]
+        );
+        added++;
+        log("  [fixnet-discovery] NEW peer " + identity.substring(0, 16) + "... via " + (connection || "?"));
+      } else {
+        // Update last_seen and (optionally) block/online from anchor's view
+        sharedDb.run(
+          "UPDATE fixnet_validator_discoveries SET last_seen = ?, online = ?, last_block = COALESCE(?, last_block), connection = COALESCE(?, connection) WHERE identity = ?",
+          [now, online, block, connection, identity]
+        );
+      }
+    } catch (e) {
+      logError("  [fixnet-discovery] DB error for " + identity.substring(0, 12) + ": " + e.message);
+    }
+  }
+  return added;
+}
+
+// Actively probe discovered fixnet nodes (rate-limited: every 3 cycles).
+// Updates last_block, online, last_probed_at.
+async function probeDiscoveredFixnetNodes() {
+  if (!sharedDb) return [];
+  var now = Date.now();
+  // Rate limit: ~1 min between probes per node
+  var PROBE_INTERVAL_MS = 60 * 1000;
+
+  var rows;
+  try {
+    rows = sharedDb.query(
+      "SELECT identity, connection, first_seen, last_seen, online, last_block, last_probed_at FROM fixnet_validator_discoveries ORDER BY last_seen DESC"
+    ).all();
+  } catch (e) {
+    logError("  [fixnet-discovery] query failed: " + e.message);
+    return [];
+  }
+  if (!rows || rows.length === 0) return [];
+
+  // Which ones are due for a probe?
+  var due = rows.filter(function(r) {
+    if (!r.connection) return false;
+    if (!r.last_probed_at) return true; // never probed
+    return (now - r.last_probed_at) >= PROBE_INTERVAL_MS;
+  });
+
+  // Probe all due nodes in parallel with a bounded timeout (5s per probe)
+  var probePromises = due.map(function(r) {
+    return (async function() {
+      var probedAt = Date.now();
+      var connUrl = r.connection.replace(/\/$/, "");
+      try {
+        var resp = await fetch(connUrl + "/info", { signal: AbortSignal.timeout(5000) });
+        if (resp.ok) {
+          var data = await resp.json();
+          var selfBlock = null;
+          if (data.peerlist && Array.isArray(data.peerlist)) {
+            var self = data.peerlist.find(function(p) { return p.identity === r.identity; });
+            if (self && self.sync) selfBlock = self.sync.block;
+          }
+          sharedDb.run(
+            "UPDATE fixnet_validator_discoveries SET online = 1, last_block = COALESCE(?, last_block), last_probed_at = ? WHERE identity = ?",
+            [selfBlock, probedAt, r.identity]
+          );
+          return { ok: true, identity: r.identity, block: selfBlock };
+        } else {
+          sharedDb.run(
+            "UPDATE fixnet_validator_discoveries SET online = 0, last_probed_at = ? WHERE identity = ?",
+            [probedAt, r.identity]
+          );
+          return { ok: false, identity: r.identity, error: "HTTP " + resp.status };
+        }
+      } catch (e) {
+        sharedDb.run(
+          "UPDATE fixnet_validator_discoveries SET online = 0, last_probed_at = ? WHERE identity = ?",
+          [probedAt, r.identity]
+        );
+        return { ok: false, identity: r.identity, error: e.message || String(e) };
+      }
+    })();
+  });
+
+  if (probePromises.length > 0) {
+    await Promise.all(probePromises);
+    log("  [fixnet-discovery] probed " + probePromises.length + " discovered node(s)");
+  }
+
+  // Return fresh data (including just-updated rows) for use in UI/API payload
+  try {
+    var fresh = sharedDb.query(
+      "SELECT identity, connection, first_seen, last_seen, online, last_block, last_probed_at FROM fixnet_validator_discoveries ORDER BY last_seen DESC"
+    ).all();
+    return (fresh || []).map(function(r) {
+      return {
+        identity: r.identity,
+        connection: r.connection,
+        online: r.online === 1 || r.online === true,
+        block: r.last_block,
+        first_seen: r.first_seen,
+        last_seen: r.last_seen,
+        last_probed_at: r.last_probed_at,
+        operator: null
+      };
+    });
+  } catch (e) {
+    return [];
+  }
+}
+
 async function checkExplorer() {
   log("  Explorer: disabled (SPA, not scrappable)");
   return { ok: false, block: null };
@@ -1662,6 +1948,7 @@ function discoverValidators(infoData) {
     // Check if this is a known fleet or public node
     if (IDENTITY_TO_NAME[identity]) continue;
     if (PUBLIC_NODE_IDENTITIES[identity]) continue;
+    if (FIXNET_NODE_IDENTITIES[identity]) continue;
 
     // Unknown peer — track it
     if (!discoveredPeers[identity]) {
@@ -2154,6 +2441,79 @@ function generatePrometheusMetrics(fleetData) {
         res.writeHead(200, {"Content-Type":"application/json"});
         res.end(JSON.stringify({total:totals.total||0, pending:totals.pending||0, probed_ok:totals.probed_ok||0, probed_failed:totals.probed_failed||0, approved:totals.approved||0, top_ports:topPorts, failure_reasons:failReasons, recent:recent}, null, 2));
       } catch(err) { res.writeHead(500, {"Content-Type":"application/json"}); res.end(JSON.stringify({error:err.message})); }
+    } else if (req.url === "/fixnet/health") {
+      var fxNodes = latestFixnetNodes || [];
+      var fxOnline = fxNodes.filter(function(n) { return n.ok; });
+      var fxAnchor = fxNodes.find(function(n) { return n.source_type === "anchor"; });
+      var fxFleet = fxNodes.filter(function(n) { return n.source_type === "fleet"; });
+      var fxNetworkHead = fxAnchor && fxAnchor.block ? fxAnchor.block : 0;
+      var fxFleetHead = 0;
+      for (var fxi = 0; fxi < fxFleet.length; fxi++) {
+        if (fxFleet[fxi].block && fxFleet[fxi].block > fxFleetHead) fxFleetHead = fxFleet[fxi].block;
+      }
+      var fxAtHead = fxOnline.filter(function(n) {
+        return n.block && fxNetworkHead > 0 && (fxNetworkHead - n.block) <= 100;
+      }).length;
+      // v7.2: include discovered fixnet nodes
+      var fxDisc = latestDiscoveredFixnet || [];
+      var fxDiscOnline = fxDisc.filter(function(d) { return d.online; });
+      var fxPayload = {
+        network: "fixnet",
+        observed_at: new Date().toISOString(),
+        anchor: fxAnchor ? {
+          url: fxAnchor.url,
+          host: fxAnchor.host,
+          identity: fxAnchor.identity,
+          status: fxAnchor.ok ? "online" : "offline",
+          block: fxAnchor.block,
+          latency_ms: fxAnchor.latencyMs,
+          error: fxAnchor.error || null
+        } : null,
+        fleet: {
+          count: fxFleet.length,
+          online: fxFleet.filter(function(n) { return n.ok; }).length,
+          at_head: fxAtHead,
+          nodes: fxFleet.map(function(n) {
+            return {
+              name: n.name,
+              host: n.host,
+              identity: n.identity,
+              status: n.ok ? "online" : "offline",
+              block: n.block,
+              latency_ms: n.latencyMs,
+              behind: (n.block && fxNetworkHead > 0) ? Math.max(0, fxNetworkHead - n.block) : null,
+              sync_pct: (n.block && fxNetworkHead > 0) ? Math.round((n.block / fxNetworkHead) * 1000) / 10 : null,
+              error: n.error || null
+            };
+          })
+        },
+        discovered: {
+          count: fxDisc.length,
+          online: fxDiscOnline.length,
+          nodes: fxDisc.map(function(d) {
+            return {
+              identity: d.identity,
+              identity_short: d.identity ? (d.identity.substring(0, 6) + "…" + d.identity.substring(d.identity.length - 4)) : null,
+              connection: d.connection,
+              status: d.online ? "online" : "offline",
+              block: d.block,
+              behind: (d.block && fxNetworkHead > 0) ? Math.max(0, fxNetworkHead - d.block) : null,
+              sync_pct: (d.block && fxNetworkHead > 0) ? Math.round((d.block / fxNetworkHead) * 1000) / 10 : null,
+              first_seen: d.first_seen ? new Date(d.first_seen).toISOString() : null,
+              last_seen: d.last_seen ? new Date(d.last_seen).toISOString() : null,
+              last_probed_at: d.last_probed_at ? new Date(d.last_probed_at).toISOString() : null
+            };
+          })
+        },
+        summary: {
+          fleet_head: fxFleetHead,
+          network_head: fxNetworkHead,
+          fleet_lag: fxNetworkHead > fxFleetHead ? fxNetworkHead - fxFleetHead : 0,
+          status: (fxNodes.length > 0 && fxOnline.length === fxNodes.length) ? "stable" : (fxOnline.length > 0 ? "degraded" : "offline")
+        }
+      };
+      res.writeHead(200);
+      res.end(JSON.stringify(fxPayload, null, 2));
     } else if (req.url === "/community") {
       if (!sharedDb) { res.writeHead(200, {"Content-Type":"text/html"}); res.end("<h1>No data</h1>"); return; }
       var rows = sharedDb.query("SELECT id, host, port, operator, status, probe_ok, probe_block, probe_error, probe_identity, submitted_at FROM submissions WHERE status != 'probed_failed' ORDER BY id DESC LIMIT 50").all();
@@ -2265,6 +2625,134 @@ function generatePrometheusMetrics(fleetData) {
       h += '<main>';
       h += '<div class="noncanonical-banner"><strong>Reference surface.</strong>Community node submissions, discovered validators, and fleet diagnostics shown on this page are not canonical network truth until approved. Inclusion does not imply endorsement.</div>';
       h += '<h1>Community Node Onboarding</h1>';
+
+      // --- Fleet Fixnet section (v7.2) ---
+      var fx = latestFixnetNodes || [];
+      var fxDiscovered = latestDiscoveredFixnet || []; // populated by Change 8; empty until then
+      if (fx.length > 0) {
+        var fxAnchorN = fx.find(function(n){return n.source_type==="anchor"});
+        var fxFleetN = fx.filter(function(n){return n.source_type==="fleet"});
+        var fxNetHead = fxAnchorN && fxAnchorN.block ? fxAnchorN.block : 0;
+        // Monitored = our hardcoded 8 (anchor + fleet). Discovered shown separately when D>0.
+        var fxMonitoredN = fx.length;
+        var fxOnlineN = fx.filter(function(n){return n.ok}).length;
+        var fxAtHeadN = fx.filter(function(n){return n.ok && n.block && fxNetHead>0 && (fxNetHead - n.block) <= 100}).length;
+        var fxDiscoveredOnlineN = fxDiscovered.filter(function(n){return n.online}).length;
+        // Fleet sync stats for sync-note
+        var fxFleetAtHeadN = fxFleetN.filter(function(n){return n.ok && n.block && fxNetHead>0 && (fxNetHead - n.block) <= 100}).length;
+        var fxFleetSyncingN = fxFleetN.length - fxFleetAtHeadN;
+        var fxFleetLags = fxFleetN.filter(function(n){return n.block && fxNetHead>0}).map(function(n){return fxNetHead - n.block}).sort(function(a,b){return a-b});
+        var fxFleetMedianLag = fxFleetLags.length ? fxFleetLags[Math.floor(fxFleetLags.length/2)] : 0;
+        // Updated-ago for section subtitle
+        var fxAgoStr = "";
+        if (fixnetObservedAt) {
+          var agoSec = Math.max(0, Math.round((Date.now() - fixnetObservedAt) / 1000));
+          fxAgoStr = agoSec < 60 ? (agoSec + "s ago") : (Math.round(agoSec/60) + "m ago");
+        }
+
+        h += '<section style="margin:28px 0 36px">';
+        h += '<h2 style="font-family:var(--mono);font-size:18px;font-weight:600;letter-spacing:-0.02em;margin:0 0 4px">Fleet Fixnet</h2>';
+        h += '<div style="font-size:11px;color:var(--text-secondary);font-family:var(--mono);margin:0 0 14px">';
+        h += '<a href="/fixnet/health" style="color:var(--improving);text-decoration:none">JSON</a>';
+        if (fxAgoStr) h += ' &nbsp;&middot;&nbsp; Updated ' + fxAgoStr;
+        h += '</div>';
+        h += '<div class="summary" style="margin-bottom:16px">';
+        h += '<div class="sum-card"><div class="sum-val">' + fxMonitoredN + '</div><div class="sum-label">Monitored</div></div>';
+        h += '<div class="sum-card"><div class="sum-val" style="color:' + (fxOnlineN===fxMonitoredN?"#2dd4a0":"#d97706") + '">' + fxOnlineN + '</div><div class="sum-label">Reachable</div></div>';
+        h += '<div class="sum-card"><div class="sum-val" style="color:' + (fxAtHeadN>0?"#2dd4a0":"#98a2b3") + '">' + fxAtHeadN + '</div><div class="sum-label">At Head</div></div>';
+        h += '<div class="sum-card"><div class="sum-val" style="font-size:14px">' + (fxNetHead?fxNetHead.toLocaleString():"\u2014") + '</div><div class="sum-label">Network Head</div></div>';
+        if (fxDiscovered.length > 0) {
+          h += '<div class="sum-card"><div class="sum-val" style="color:#a78bfa">' + fxDiscovered.length + '</div><div class="sum-label">Discovered</div></div>';
+        }
+        h += '</div>';
+
+        // Helper: truncate identity (0x8f3a…ba05)
+        function truncId(id) {
+          if (!id || id.length < 12) return id || "\u2014";
+          return id.substring(0, 6) + "\u2026" + id.substring(id.length - 4);
+        }
+
+        h += '<div class="table-scroll"><table><thead><tr>';
+        h += '<th>Validator</th><th>Source</th><th>Operator</th><th>Status</th><th>Block</th><th>Sync</th><th>Latency</th>';
+        h += '</tr></thead><tbody>';
+
+        // Build ordered rows: Anchor, then Fleet (status then block desc), then Discovered (status then block desc)
+        var fxFleetSorted = fxFleetN.slice().sort(function(a,b){
+          if (a.ok !== b.ok) return a.ok ? -1 : 1;
+          return (b.block||0) - (a.block||0);
+        });
+        var fxDiscSorted = fxDiscovered.slice().sort(function(a,b){
+          if (a.online !== b.online) return a.online ? -1 : 1;
+          return (b.block||0) - (a.block||0);
+        });
+
+        var fxRows = [];
+        if (fxAnchorN) fxRows.push({kind:"anchor", data:fxAnchorN});
+        for (var fli=0; fli<fxFleetSorted.length; fli++) fxRows.push({kind:"fleet", data:fxFleetSorted[fli]});
+        for (var dli=0; dli<fxDiscSorted.length; dli++) fxRows.push({kind:"discovered", data:fxDiscSorted[dli]});
+
+        for (var fxi=0; fxi<fxRows.length; fxi++) {
+          var rowKind = fxRows[fxi].kind;
+          var fn = fxRows[fxi].data;
+          var isAnchor = rowKind === "anchor";
+          var isFleet = rowKind === "fleet";
+          var isDisc = rowKind === "discovered";
+
+          var srcColor = isAnchor ? "#2B36D9" : (isFleet ? "#98a2b3" : "#a78bfa");
+          var srcLabel = isAnchor ? "Kynesys" : (isFleet ? "Fleet" : "Discovered");
+
+          // Status resolution: monitored uses .ok, discovered uses .online
+          var isOnline = isDisc ? !!fn.online : !!fn.ok;
+          var statusColor = isOnline ? "#22c55e" : "#EF4444";
+          var statusText = isOnline ? "online" : "offline";
+
+          // Operator
+          var operator = fn.operator || (isDisc ? "\u2014" : "Unknown");
+
+          // Block
+          var block = fn.block || fn.last_block || null;
+          var syncPct = (block && fxNetHead > 0) ? Math.round((block / fxNetHead) * 1000) / 10 : null;
+          var syncColor = syncPct !== null && syncPct >= 90 ? "#22c55e" : (syncPct !== null && syncPct >= 10 ? "#d97706" : "#98a2b3");
+
+          // Latency (only meaningful for monitored; discovered has no current-cycle latency)
+          var latencyStr = isDisc ? "\u2014" : (fn.latencyMs != null ? fn.latencyMs + "ms" : "\u2014");
+
+          // Validator cell: name + sub-line identity.
+          var nameLabel = isDisc ? ("discovered-" + (fn.identity ? fn.identity.substring(fn.identity.length-4) : "????")) : fn.name;
+          var identity = fn.identity || "";
+
+          h += '<tr>';
+          // Validator (with identity sub-line)
+          h += '<td><div>' + esc(nameLabel) + '</div>';
+          h += '<div style="font-family:var(--mono);color:var(--text-secondary);font-size:10px;margin-top:2px;opacity:0.7">' + esc(truncId(identity)) + '</div></td>';
+          // Source
+          h += '<td><span class="pill" style="color:'+srcColor+';border-color:'+srcColor+'44">' + srcLabel + '</span></td>';
+          // Operator
+          h += '<td style="color:var(--text-secondary)">' + esc(operator) + '</td>';
+          // Status
+          h += '<td><span style="color:'+statusColor+'">\u25cf</span> ' + statusText + '</td>';
+          // Block
+          h += '<td>' + (block ? block.toLocaleString() : "\u2014") + '</td>';
+          // Sync
+          h += '<td' + (syncPct !== null ? ' style="color:'+syncColor+'"' : '') + '>' + (syncPct !== null ? syncPct + "%" : "\u2014") + '</td>';
+          // Latency
+          h += '<td>' + latencyStr + '</td>';
+          h += '</tr>';
+        }
+        h += '</tbody></table></div>';
+
+        // Fleet syncing note — threshold: any fleet lag > 100 blocks
+        if (fxFleetSyncingN > 0) {
+          var medianLagStr = fxFleetMedianLag > 1000 ? (Math.round(fxFleetMedianLag/1000).toLocaleString() + 'k') : fxFleetMedianLag.toLocaleString();
+          h += '<p class="sub" style="margin-top:10px;font-size:11px">';
+          h += 'Fleet syncing \u2014 ' + fxFleetAtHeadN + ' of ' + fxFleetN.length + ' at head, ';
+          h += fxFleetSyncingN + ' catching up (median lag: ' + medianLagStr + ' blocks).';
+          h += '</p>';
+        }
+        h += '</section><hr style="border:none;border-top:1px solid var(--border);margin:24px 0">';
+      }
+      // --- end Fleet Fixnet section ---
+
       h += '<div style="margin-bottom:18px"><a href="/submit" class="oracle-hero-submit">OPEN: NODE SUBMISSION</a></div><p class="sub">Community validator nodes during onboarding and approval.</p>';
       // Summary
       h += '<div class="summary">';
@@ -2360,28 +2848,6 @@ function generatePrometheusMetrics(fleetData) {
       }
       h += '</div>';
 
-      h += '<div style="margin-top:40px;padding-top:24px;border-top:1px solid var(--border)">';
-      h += '<h2 style="font-family:var(--mono);font-size:16px;font-weight:600;letter-spacing:-0.02em;margin:0 0 4px">Reference Fleet Diagnostics</h2>';
-      h += '<p class="sub" style="margin-bottom:18px">Reference-only nodes operated by XM33. Shown with live diagnostics from the Oracle\'s observation cycle. These do not define canonical public truth.</p>';
-      h += '<div class="table-scroll"><table><thead><tr><th>Node</th><th>Host</th><th>Status</th><th>Block</th></tr></thead><tbody>';
-      var fleetNames = Object.keys(EXPECTED_FLEET);
-      for (var fi = 0; fi < fleetNames.length; fi++) {
-        var fname = fleetNames[fi];
-        var fnode = EXPECTED_FLEET[fname];
-        var report = fleetReports[fname] || {};
-        var isHealthy = report.status === "HEALTHY";
-        var statusText = report.status ? String(report.status).toLowerCase() : "unknown";
-        var statusColor = isHealthy ? "#2dd4a0" : (report.status ? "#EF4444" : "#98a2b3");
-        var statusBg = isHealthy ? "rgba(45,212,160,0.08)" : (report.status ? "rgba(239,68,68,0.08)" : "rgba(152,162,179,0.08)");
-        h += '<tr>';
-        h += '<td>' + esc(fname) + '</td>';
-        h += '<td style="color:var(--text-secondary)">' + esc(fnode.host) + ':' + fnode.port + '</td>';
-        h += '<td><span class="pill" style="color:' + statusColor + ';background:' + statusBg + ';border-color:' + statusColor + '44">' + esc(statusText) + '</span></td>';
-        h += '<td>' + (report.blockHeight ? report.blockHeight.toLocaleString() : "\u2014") + '</td>';
-        h += '</tr>';
-      }
-      h += '</tbody></table></div>';
-      h += '</div>';
       h += '<footer>Demos Network Oracle &middot; API v1.0 &middot; <a href="/methodology">Methodology</a> &middot; <a href="https://github.com/xm33/demos-network-oracle">GitHub</a> &middot; Built by XM33</footer>';
       h += '</main></body></html>';
       res.writeHead(200, {"Content-Type":"text/html; charset=utf-8"});
@@ -3074,6 +3540,29 @@ async function main() {
     online INTEGER DEFAULT 1
   )`);
 
+  // Fixnet validator discovery table (separate from testnet's validator_discoveries)
+  sharedDb.run(`CREATE TABLE IF NOT EXISTS fixnet_validator_discoveries (
+    identity TEXT PRIMARY KEY,
+    first_seen INTEGER NOT NULL,
+    last_seen INTEGER NOT NULL,
+    connection TEXT,
+    online INTEGER DEFAULT 0,
+    last_block INTEGER,
+    last_probed_at INTEGER
+  )`);
+  sharedDb.run(`CREATE INDEX IF NOT EXISTS idx_fxd_last_seen ON fixnet_validator_discoveries(last_seen)`);
+
+  // v7.2: startup cleanup — remove fixnet discoveries not seen in last 7 days
+  try {
+    var cutoff7d = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    var delResult = sharedDb.run("DELETE FROM fixnet_validator_discoveries WHERE last_seen < ?", [cutoff7d]);
+    if (delResult && delResult.changes > 0) {
+      log("[startup] removed " + delResult.changes + " stale fixnet discovery row(s) older than 7 days");
+    }
+  } catch (cleanupErr) {
+    logError("[startup] fixnet discovery cleanup failed (non-fatal): " + cleanupErr.message);
+  }
+
   // M3: Public node history — per-cycle observation snapshots
   sharedDb.run(`CREATE TABLE IF NOT EXISTS public_node_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -3215,6 +3704,21 @@ async function main() {
       var cycleAttestations = publicRpcProbe.attestations;
       var publicNodeResults = await probePublicNodes();
       latestPublicNodes = publicNodeResults;
+      // --- Probe fleet fixnet (additive, independent of testnet polling) ---
+      try {
+        latestFixnetNodes = await probeFixnetNodes();
+        fixnetObservedAt = Date.now();
+        fixnetCycleCounter++;
+        // v7.2: probe discovered fixnet nodes (rate-limited inside function)
+        try {
+          latestDiscoveredFixnet = await probeDiscoveredFixnetNodes();
+        } catch (discErr) {
+          log("  [fixnet-discovery] probe batch failed (non-fatal): " + discErr.message);
+        }
+      } catch (fixnetErr) {
+        log("  [fixnet] probe batch failed (non-fatal): " + fixnetErr.message);
+      }
+
 
       // M3: Record public node observation snapshot
       recordPublicNodeHistory();
