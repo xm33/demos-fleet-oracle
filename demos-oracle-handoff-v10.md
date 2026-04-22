@@ -3,6 +3,12 @@
 **Date:** 2026-04-21 (late evening CEST)
 **Latest commit:** `63c37e0` (C1.4: footer cleanup — remove broken Scan link + XM33 attribution)
 **Status:** Live at demos-oracle.com. Final product polish pass complete. Unified header across all 6 surfaces, watermark anchored to document, hero redundancies removed, attestation line relocated, footer cleaned. 5 commits shipped and pushed to origin this session.
+
+> **POST-V10 ADDENDUM (2026-04-22)** — Two additional commits shipped after v10 was written, resolving issues visible on observed use:
+> - `50b447e` — **C1.5**: badge clipping fix on /community (UNREACHABLE was truncated, NEAR HEAD wrapped mid-word); footer unification across 6 surfaces (every page now shows identical provenance meta line, all centered, all include Built by XM33).
+> - `7d08e56` — **C3**: /community non-canonical banner shipped (was deferred in §12). Gray-bordered "Reference surface" disclaimer at top of /community. Preserves the semantic claim that C1.5 removed from the /community footer. No longer deferred.
+>
+> §12 "Deferred work" should be read with C3 crossed out. Audit scope (Option B — Kynesys-docs-grounded fleet audit) was discussed and deferred pending the 3 audit-startup questions listed at session end.
 **Code:** Single file `src/agent.mjs` (~3,500 lines) on n3 (193.77.169.106) + 5 supporting HTML files
 **Session type:** Coherence pass — observation-driven polish, no canonical changes, no new features. Session ended deliberately at observation window.
 
