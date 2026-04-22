@@ -1739,7 +1739,7 @@ function groupSignals(signals) {
 
 async function checkLatestVersion() {
   try {
-    var gr = await fetch("https://api.github.com/repos/xm33/demos-fleet-oracle/commits/master", { signal: AbortSignal.timeout(8000), headers: { "User-Agent": "demos-fleet-oracle" } });
+    var gr = await fetch("https://api.github.com/repos/xm33/demos-network-oracle/commits/master", { signal: AbortSignal.timeout(8000), headers: { "User-Agent": "demos-network-oracle" } });
     var gd = await gr.json();
     latestVersionData.latestCommit = gd.sha ? gd.sha.substring(0, 7) : null;
     latestVersionData.latestMessage = gd.commit ? gd.commit.message.split("\n")[0] : null;
@@ -1962,7 +1962,7 @@ function generatePrometheusMetrics(fleetData) {
       res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
       res.end(JSON.stringify({
         instructions: "Add to your prometheus.yml scrape_configs:",
-        scrape_config: { job_name: "demos-fleet-oracle", scrape_interval: "60s", metrics_path: "/federate",
+        scrape_config: { job_name: "demos-network-oracle", scrape_interval: "60s", metrics_path: "/federate",
           static_configs: [{ targets: ["193.77.169.106:55225"], labels: { network: "demos-testnet", agent: "fleet-oracle" } }] }
       }, null, 2));
     } else if (req.url === "/consensus" || req.url === "/consensus/") {
@@ -2382,7 +2382,7 @@ function generatePrometheusMetrics(fleetData) {
       }
       h += '</tbody></table></div>';
       h += '</div>';
-      h += '<footer>Demos Network Oracle &middot; API v1.0 &middot; <a href="/methodology">Methodology</a> &middot; <a href="https://github.com/xm33/demos-fleet-oracle">GitHub</a> &middot; Built by XM33</footer>';
+      h += '<footer>Demos Network Oracle &middot; API v1.0 &middot; <a href="/methodology">Methodology</a> &middot; <a href="https://github.com/xm33/demos-network-oracle">GitHub</a> &middot; Built by XM33</footer>';
       h += '</main></body></html>';
       res.writeHead(200, {"Content-Type":"text/html; charset=utf-8"});
       res.end(h);
@@ -2625,7 +2625,7 @@ h1{color:#58a6ff;margin-bottom:4px;font-size:1.4em}
   <span style="display:flex;align-items:center;gap:5px;background:#161b22;border:1px solid #30363d;border-radius:6px;padding:3px 8px;font-size:0.78em">powered by <img src="https://framerusercontent.com/assets/IyyrITqCg67NykDbX6dibaTrhfA.svg" height="14" style="vertical-align:middle;filter:brightness(10)"></span>
   <span style="color:#444">|</span>
   <a href="/docs" style="color:#58a6ff">Docs</a>
-  <a href="https://github.com/xm33/demos-fleet-oracle" style="color:#58a6ff">GitHub</a>
+  <a href="https://github.com/xm33/demos-network-oracle" style="color:#58a6ff">GitHub</a>
 </div>
 <script>
 function drawChart(hist){
