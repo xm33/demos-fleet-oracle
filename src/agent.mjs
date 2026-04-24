@@ -2771,7 +2771,7 @@ function generatePrometheusMetrics(fleetData) {
 
           // Status resolution: monitored uses .ok, discovered uses .online
           var isOnline = isDisc ? !!fn.online : !!fn.ok;
-          var statusColor = isOnline ? "#22c55e" : "#EF4444";
+          var statusColor = isOnline ? "#2dd4a0" : "#EF4444";
           var statusText = isOnline ? "online" : "offline";
 
 
