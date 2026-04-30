@@ -149,6 +149,28 @@ footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);color
 <p>These historical metrics are observational summaries only. They do not constitute endorsement, certification, or recommendation of any validator or operator. Early values should be interpreted cautiously until sufficient history has accumulated. Historical metrics do not change the canonical truth model unless explicitly stated.</p>
 <div class="note">Rolling observed history. Early values may refine over time.</div>
 
+
+<h2>Last 24 Hours Summary</h2>
+<p>The "Last 24 Hours" panel on the homepage surfaces aggregate observation from the most recent 24 hours of probe cycles. All fields derive from the public node history table and the public-scope incidents table.</p>
+
+<h3>Public nodes observed</h3>
+<p>The number of public nodes that returned a usable response in each probe cycle. This reflects what the Oracle observed in probe cycles, not the total number of validators in the network. "Typically N" is the most common observed count across the window. "Peak M" is the largest count observed at any point.</p>
+
+<h3>Peak observation window</h3>
+<p>When the typical and peak counts differ, this row reports how often the larger set was assembled and how many of those nodes were reachable on average. It frames observation quality, not network failure: "5 nodes observed; 1.0 reachable on average across 156 cycles" means the Oracle managed to assemble a 5-node observation 156 times in 24 hours, and during those cycles, on average one of the five was reachable.</p>
+
+<h3>Chain movement</h3>
+<p>Categorical: <em>normal</em>, <em>interrupted</em>, or <em>unknown</em>. Computed by bucketing the 24-hour window into 5-minute intervals and checking whether the median block number advanced within each bucket. <em>Normal</em> requires advance in at least 95% of buckets and no static run of 5+ minutes. <em>Interrupted</em> fires on either threshold. <em>Unknown</em> indicates fewer than 12 buckets of data — typically during partial windows.</p>
+
+<h3>Longest non-stable interval</h3>
+<p>The longest contiguous run of cycles where the Oracle's computed status was "unstable" or "degraded". Cycles in "unknown" state break the run because "unknown" indicates an observation gap, not network state.</p>
+
+<h3>Active critical public incidents</h3>
+<p>Critical-severity incidents that were open at any point during the window and affect at least one non-fleet node. Fleet-internal incidents are excluded.</p>
+
+<h3>Coverage</h3>
+<p>The fraction of expected probe cycles actually observed in the window (86,400 seconds / 20-second cadence = 4,320 expected cycles). When coverage drops below 50%, all numerical fields are hidden until the rolling window is sufficiently observed.</p>
+
 <h2>Scope and Limits</h2>
 <p>The Oracle is a watch-only observability system. It summarizes observed network conditions and historical measurements but does not provide financial, operational, legal, or governance advice.</p>
 <p>Inclusion of a validator in Oracle outputs does not imply endorsement, approval, or certification.</p>

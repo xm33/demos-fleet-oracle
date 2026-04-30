@@ -21,6 +21,30 @@ var RETRY_DELAY_MS = 5000;
 var MAX_LOG_SIZE = 10 * 1024 * 1024; // 10MB
 var MAX_LOG_BACKUPS = 3;
 
+// ============================================================================
+// Phase B: Last 24h Summary — constants
+// ============================================================================
+
+// Fleet identification for incident scope inference (no scope column in schema).
+// Includes two decommissioned nodes (m3, n9) that still appear in legacy client JS.
+// Treating them as fleet prevents accidental public classification. Update list
+// when client JS is cleaned up — m3 and n9 may rejoin fleet later.
+var FLEET_NODES_24H = new Set(['n1','n2','n3','n4','n5','n6','m1','m3','n9']);
+
+// Chain movement thresholds — env-overridable for live-chain migration tuning.
+var CHAIN_BUCKET_MIN_24H = parseInt(process.env.PHASE_B_CHAIN_BUCKET_MIN || '5', 10);
+var CHAIN_STATIC_RUN_MIN_24H = parseInt(process.env.PHASE_B_CHAIN_STATIC_RUN_MIN || '5', 10);
+var CHAIN_ADVANCE_PCT_24H = parseFloat(process.env.PHASE_B_CHAIN_ADVANCE_PCT || '0.95');
+
+// Coverage gate — hide all numerics below this fraction of expected cycles.
+var COVERAGE_GATE_24H = 0.50;
+var EXPECTED_CYCLES_24H = 4320; // 86400s / 20s probe cadence
+
+// Cache for /health and /organism so back-to-back requests share one DB pass.
+var last24hCache = { value: null, computedAt: 0 };
+var LAST_24H_TTL_MS = 10000;
+
+
 function log(msg) {
   var ts = new Date().toISOString();
   var line = "[" + ts + "] " + msg;
@@ -913,6 +937,229 @@ function computeCanonicalState() {
   if (agreement.state === "unknown") agreementReason = "Fewer than 2 reachable nodes";
   else agreementReason = agreement.aligned_nodes + " of " + agreement.total_nodes + " reachable nodes within ±25 blocks of median (spread: " + agreement.block_spread + " blocks)";
   return { status: status, trend: trend, risk: risk, data_quality: data_quality, confidence: confidence, confidence_reason: confidenceReason, agreement: agreement, active_incidents: publicIncidentCount, max_incident_severity: max_incident_severity, summary: summary, status_reason: statusReason, risk_factors: riskFactors, agreement_reason: agreementReason, staleness_seconds: stalenessSeconds, last_updated: new Date().toISOString(), api_version: "1.0" };
+}
+
+// ============================================================================
+// Phase B: Last 24h Summary — helpers
+// ============================================================================
+
+function isFleetIncident_24h(inc) {
+  if (inc.description && (
+      inc.description.indexOf("Fleet reference") === 0 ||
+      inc.description === "Chain-level issue detected"
+  )) return true;
+
+  var affected;
+  try {
+    affected = typeof inc.affected_nodes === 'string'
+      ? JSON.parse(inc.affected_nodes)
+      : inc.affected_nodes;
+  } catch (e) {
+    return false;
+  }
+
+  if (!Array.isArray(affected) || affected.length === 0) return false;
+  for (var i = 0; i < affected.length; i++) {
+    if (!FLEET_NODES_24H.has(affected[i])) return false;
+  }
+  return true;
+}
+
+function computeChainMovement_24h(rows) {
+  if (!rows || rows.length === 0) return { state: "unknown", reason: "no_data" };
+
+  var bucketMs = CHAIN_BUCKET_MIN_24H * 60000;
+  var minRequiredBuckets = 12;
+
+  var buckets = {};
+  for (var i = 0; i < rows.length; i++) {
+    var bucketIdx = Math.floor(rows[i].ts / bucketMs);
+    if (!buckets[bucketIdx]) buckets[bucketIdx] = [];
+    buckets[bucketIdx].push(rows[i]);
+  }
+
+  var bucketKeys = Object.keys(buckets).map(Number).sort(function(a, b) { return a - b; });
+
+  if (bucketKeys.length < minRequiredBuckets) {
+    return { state: "unknown", reason: "insufficient_buckets", buckets: bucketKeys.length };
+  }
+
+  var advancing = 0, nonAdvancing = 0, currentStaticRun = 0, maxStaticRun = 0;
+
+  for (var k = 0; k < bucketKeys.length; k++) {
+    var b = buckets[bucketKeys[k]];
+    var first = b[0].median_block;
+    var last = b[b.length - 1].median_block;
+
+    if (last !== null && first !== null && last > first) {
+      advancing++;
+      if (currentStaticRun > maxStaticRun) maxStaticRun = currentStaticRun;
+      currentStaticRun = 0;
+    } else {
+      nonAdvancing++;
+      currentStaticRun++;
+    }
+  }
+  if (currentStaticRun > maxStaticRun) maxStaticRun = currentStaticRun;
+
+  var totalBuckets = advancing + nonAdvancing;
+  var pctAdvancing = totalBuckets > 0 ? advancing / totalBuckets : 0;
+  var longestStaticMin = maxStaticRun * CHAIN_BUCKET_MIN_24H;
+
+  if (longestStaticMin >= CHAIN_STATIC_RUN_MIN_24H) {
+    return {
+      state: "interrupted",
+      longest_static_minutes: longestStaticMin,
+      pct_advancing: Math.round(pctAdvancing * 100) / 100
+    };
+  }
+  if (pctAdvancing >= CHAIN_ADVANCE_PCT_24H) {
+    return { state: "normal", pct_advancing: Math.round(pctAdvancing * 100) / 100 };
+  }
+  return {
+    state: "interrupted",
+    pct_advancing: Math.round(pctAdvancing * 100) / 100,
+    reason: "low_advance_ratio"
+  };
+}
+
+function computeLongestNonStable_24h(rows) {
+  if (!rows || rows.length < 2) return 0;
+  var longestMs = 0, runStart = null, runLastTs = null;
+
+  for (var i = 0; i < rows.length; i++) {
+    var s = rows[i].status;
+    var nonStable = (s === "unstable" || s === "degraded");
+
+    if (nonStable) {
+      if (runStart === null) runStart = rows[i].ts;
+      runLastTs = rows[i].ts;
+    } else {
+      if (runStart !== null) {
+        var runMs = (runLastTs - runStart) + 20000;
+        if (runMs > longestMs) longestMs = runMs;
+        runStart = null;
+        runLastTs = null;
+      }
+    }
+  }
+  if (runStart !== null) {
+    var openRunMs = (runLastTs - runStart) + 20000;
+    if (openRunMs > longestMs) longestMs = openRunMs;
+  }
+  return Math.floor(longestMs / 60000);
+}
+
+function compute24hSummary() {
+  if (!sharedDb) return null;
+
+  var now = Date.now();
+  var since = now - 86400000;
+  var nowIso = new Date(now).toISOString();
+  var sinceIso = new Date(since).toISOString();
+
+  try {
+    var aggRow = sharedDb.query(
+      "SELECT COUNT(*) AS observed_cycles, " +
+      "  MAX(nodes_total) AS peak_set_size, " +
+      "  (SELECT nodes_total FROM public_node_history " +
+      "   WHERE ts > ? GROUP BY nodes_total " +
+      "   ORDER BY COUNT(*) DESC, nodes_total DESC LIMIT 1) AS typical_set_size " +
+      "FROM public_node_history WHERE ts > ?"
+    ).get(since, since);
+
+    var observedCycles = (aggRow && aggRow.observed_cycles) || 0;
+    var coverage = observedCycles / EXPECTED_CYCLES_24H;
+
+    if (coverage < COVERAGE_GATE_24H) {
+      return {
+        sufficient: false,
+        coverage_pct: Math.round(coverage * 1000) / 10,
+        observed_cycles: observedCycles,
+        expected_cycles: EXPECTED_CYCLES_24H,
+        message: "Insufficient observation in the last 24 hours — building baseline.",
+        computed_at: nowIso
+      };
+    }
+
+    var typical = aggRow.typical_set_size;
+    var peak = aggRow.peak_set_size;
+
+    var peakInfo = null;
+    if (peak > typical) {
+      var peakRow = sharedDb.query(
+        "SELECT COUNT(*) AS peak_cycles, " +
+        "  AVG(nodes_reachable * 1.0) AS peak_avg_reachable " +
+        "FROM public_node_history WHERE ts > ? AND nodes_total = ?"
+      ).get(since, peak);
+
+      peakInfo = {
+        size: peak,
+        cycles: peakRow.peak_cycles,
+        avg_reachable: Math.round(peakRow.peak_avg_reachable * 10) / 10,
+        pct_of_window: Math.round((peakRow.peak_cycles / observedCycles) * 1000) / 10
+      };
+    }
+
+    var blockRows = sharedDb.query(
+      "SELECT ts, median_block FROM public_node_history " +
+      "WHERE ts > ? AND median_block IS NOT NULL ORDER BY ts ASC"
+    ).all(since);
+    var chainMovement = computeChainMovement_24h(blockRows);
+
+    var statusRows = sharedDb.query(
+      "SELECT ts, status FROM public_node_history WHERE ts > ? ORDER BY ts ASC"
+    ).all(since);
+    var longestNonStableMin = computeLongestNonStable_24h(statusRows);
+
+    var incidentRows = sharedDb.query(
+      "SELECT id, severity, status, started_at, resolved_at, affected_nodes, description " +
+      "FROM incidents " +
+      "WHERE severity = 'critical' AND started_at <= ? " +
+      "  AND (status = 'active' OR resolved_at >= ?)"
+    ).all(nowIso, sinceIso);
+
+    var activeCriticalPublic = 0;
+    var malformedIncidents = 0;
+    for (var i = 0; i < incidentRows.length; i++) {
+      var inc = incidentRows[i];
+      try {
+        var parsed = JSON.parse(inc.affected_nodes);
+        if (!Array.isArray(parsed)) { malformedIncidents++; continue; }
+      } catch (e) { malformedIncidents++; continue; }
+
+      if (!isFleetIncident_24h(inc)) activeCriticalPublic++;
+    }
+    if (malformedIncidents > 0) {
+      log("[24h] " + malformedIncidents + " incident rows had malformed affected_nodes");
+    }
+
+    return {
+      sufficient: true,
+      coverage_pct: Math.round(coverage * 1000) / 10,
+      observed_cycles: observedCycles,
+      expected_cycles: EXPECTED_CYCLES_24H,
+      typical_set_size: typical,
+      peak_set: peakInfo,
+      chain_movement: chainMovement,
+      longest_non_stable_minutes: longestNonStableMin,
+      active_critical_public_incidents: activeCriticalPublic,
+      computed_at: nowIso
+    };
+  } catch (e) {
+    log("[24h] Summary computation error: " + e.message);
+    return null;
+  }
+}
+
+function getLast24h() {
+  var now = Date.now();
+  if (last24hCache.value && (now - last24hCache.computedAt) < LAST_24H_TTL_MS) {
+    return last24hCache.value;
+  }
+  last24hCache.value = compute24hSummary();
+  last24hCache.computedAt = now;
+  return last24hCache.value;
 }
 
 // M3: Record public node observation snapshot
@@ -2239,6 +2486,7 @@ function generatePrometheusMetrics(fleetData) {
         staleness_seconds: canonical.staleness_seconds,
         last_updated: canonical.last_updated,
         api_version: canonical.api_version,
+        last_24h: getLast24h(),
         status_reason: canonical.status_reason,
         risk_factors: canonical.risk_factors,
         confidence_reason: canonical.confidence_reason,
@@ -2400,7 +2648,8 @@ function generatePrometheusMetrics(fleetData) {
         agreement_reason: canonical.agreement_reason,
         staleness_seconds: canonical.staleness_seconds,
         last_updated: canonical.last_updated,
-        api_version: canonical.api_version
+        api_version: canonical.api_version,
+        last_24h: getLast24h()
       };
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "public, max-age=5", "Access-Control-Allow-Origin": "*" });
       res.end(JSON.stringify(organism, null, 2));
@@ -3146,6 +3395,12 @@ h1{color:#58a6ff;margin-bottom:4px;font-size:1.4em}
   <div id="agreement-status">Loading...</div>
 </div>
 
+<!-- SECTION 2a: Last 24 Hours -->
+<div id="last-24h-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px">
+  <h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">📊 Last 24 Hours</h2>
+  <div id="last-24h-content">Loading...</div>
+</div>
+
 <!-- SECTION 2b: Network Growth -->
 <div id="growth-box" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:24px">
   <h2 style="color:#58a6ff;font-size:1.1em;margin-bottom:12px">\ud83d\udcc8 Network Growth</h2>
@@ -3249,6 +3504,58 @@ function isFleetIncident(inc) {
   if(inc.description && (inc.description.indexOf("Fleet reference")===0 || inc.description === "Chain-level issue detected")) return true;
   return inc.affectedNodes && inc.affectedNodes.length > 0 && inc.affectedNodes.every(function(n){ return FLEET_NODES.includes(n); });
 }
+function render24hSummary(s) {
+  if (!s) return '<div style="color:#8b949e;font-size:0.85em">Summary unavailable.</div>';
+
+  if (!s.sufficient) {
+    return '<div style="color:#8b949e;font-size:0.9em;font-style:italic">' +
+      (s.message || "Insufficient observation in the last 24 hours.") + '</div>';
+  }
+
+  var coverageLine = (s.coverage_pct >= 99.0)
+    ? 'coverage 24/24h'
+    : 'coverage ' + s.coverage_pct + '% of window';
+
+  var rows = [];
+
+  var nodesLine = s.peak_set
+    ? 'typically ' + s.typical_set_size + ', peak ' + s.peak_set.size
+    : String(s.typical_set_size);
+  rows.push(['Public nodes observed', nodesLine, '#c9d1d9']);
+
+  if (s.peak_set) {
+    var peakLine = s.peak_set.size + ' nodes observed; ' +
+                   s.peak_set.avg_reachable.toFixed(1) +
+                   ' reachable on average across ' +
+                   s.peak_set.cycles + ' cycles';
+    rows.push(['Peak observation window', peakLine, '#c9d1d9']);
+  }
+
+  var cmCol = s.chain_movement.state === 'normal' ? '#3fb950'
+            : s.chain_movement.state === 'interrupted' ? '#d29922'
+            : '#8b949e';
+  rows.push(['Chain movement', s.chain_movement.state, cmCol]);
+
+  var nsLine = s.longest_non_stable_minutes > 0
+    ? s.longest_non_stable_minutes + 'm'
+    : 'none observed';
+  rows.push(['Longest non-stable interval', nsLine, '#c9d1d9']);
+
+  var incCol = s.active_critical_public_incidents > 0 ? '#f85149' : '#3fb950';
+  rows.push(['Active critical public incidents', String(s.active_critical_public_incidents), incCol]);
+
+  var html = '<div style="display:flex;justify-content:flex-end;font-size:0.75em;color:#8b949e;margin-bottom:8px">' +
+             coverageLine + '</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:0.9em">';
+  rows.forEach(function(r) {
+    html += '<tr>' +
+      '<td style="padding:6px 0;color:#8b949e;width:45%">' + r[0] + '</td>' +
+      '<td style="padding:6px 0;color:' + r[2] + ';font-weight:500">' + r[1] + '</td>' +
+      '</tr>';
+  });
+  html += '</table>';
+  return html;
+}
 async function refresh(){
   try{
     var r=await fetch("/health");var d=await r.json();
@@ -3301,6 +3608,12 @@ async function refresh(){
         html+='<div style="font-size:0.82em;color:#3fb950;margin-top:4px">✅ All public nodes aligned with network head</div>';
       }
       agBox.innerHTML=html;
+    }
+
+    // Last 24 Hours panel
+    var l24Box = document.getElementById("last-24h-content");
+    if (l24Box && d.last_24h) {
+      l24Box.innerHTML = render24hSummary(d.last_24h);
     }
 
     // How we know box
@@ -3747,6 +4060,7 @@ async function main() {
     nodes_reachable INTEGER NOT NULL,
     node_states TEXT NOT NULL
   )`);
+  sharedDb.run("CREATE INDEX IF NOT EXISTS idx_pnh_ts ON public_node_history(ts)");
   log("  Public node history table ready");
   try { sharedDb.run("ALTER TABLE submissions ADD COLUMN probe_error TEXT"); } catch(e) {}
     sharedDb.run("CREATE TABLE IF NOT EXISTS submissions (id INTEGER PRIMARY KEY AUTOINCREMENT, host TEXT, port INTEGER, operator TEXT, status TEXT DEFAULT 'pending', probe_ok INTEGER DEFAULT 0, probe_block INTEGER, probe_identity TEXT, submitted_at INTEGER, reviewed_at INTEGER, probe_error TEXT)");
