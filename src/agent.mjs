@@ -3025,7 +3025,7 @@ function generatePrometheusMetrics(fleetData) {
         }
 
         h += '<section style="margin:28px 0 36px">';
-        h += '<h2 style="font-family:var(--mono);font-size:18px;font-weight:600;letter-spacing:-0.02em;margin:0 0 4px">Fleet Fixnet</h2>';
+        h += '<h2 style="font-family:var(--mono);font-size:18px;font-weight:600;letter-spacing:-0.02em;margin:0 0 4px">Demos Fixnet — workers-debug</h2>';
         h += '<div style="font-size:11px;color:var(--text-secondary);font-family:var(--mono);margin:0 0 14px">';
         h += '<a href="/fixnet/health" style="color:var(--improving);text-decoration:none">JSON</a>';
         if (fxAgoStr) h += ' &nbsp;&middot;&nbsp; Updated ' + fxAgoStr;
