@@ -1,4 +1,5 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><title>Demos Network Oracle — Submit Node</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='18' r='4' fill='%232B36D9'/%3E%3Ccircle cx='18' cy='72' r='4' fill='%232B36D9'/%3E%3Ccircle cx='82' cy='72' r='4' fill='%232B36D9'/%3E%3Ccircle cx='50' cy='50' r='5.5' fill='%232B36D9'/%3E%3C/svg%3E">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,24 +26,25 @@ button:disabled{opacity:0.4;cursor:not-allowed}
 .doc-nav-inner{max-width:980px;width:100%;margin:0 auto;padding:0 28px;display:flex;align-items:center;gap:12px}
 .doc-nav-left{order:1}
 .doc-nav-right{order:2;margin-left:auto}
-.doc-nav-inner > .nav-live{order:3}
+
 .doc-nav-left,.doc-nav-right{display:flex;align-items:center;gap:18px}
 .doc-nav-brand{color:var(--brand,#2B36D9);text-decoration:none;font-family:var(--mono);font-size:13px;letter-spacing:2.6px;font-weight:700;display:inline-flex;align-items:center;gap:8px;text-transform:uppercase}
-.doc-logo{width:22px;height:22px;color:var(--text-primary)}
+
 .doc-nav-link{color:var(--text-secondary);text-decoration:none;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.7px;text-transform:uppercase;transition:color 0.2s}
 .doc-nav-link:hover{color:var(--text-primary)}
 .doc-nav-link.active{color:var(--text-primary)}
 .doc-nav-link[aria-current="page"]{opacity:0.5}
 .doc-nav-link[aria-current="page"]:hover{opacity:0.8;text-decoration:none}
-.nav-live{font-size:10px;font-family:var(--mono);padding:4px 9px;border:1px solid rgba(34,197,94,0.16);border-radius:999px;color:var(--text-secondary);display:inline-flex;align-items:center;gap:5px;letter-spacing:0.45px}
-.nav-live-dot{width:5px;height:5px;border-radius:50%;background:var(--improving,#22c55e);opacity:0.8}
-@media(max-width:640px){.doc-nav{height:auto;min-height:56px;padding:10px 0}.doc-nav-inner{padding:0 16px;flex-wrap:wrap;gap:8px;row-gap:10px}.doc-nav-left{flex:0 0 auto;order:1}.doc-nav-inner > .nav-live{flex:0 0 auto;order:2;margin-left:auto;font-size:9px;padding:3px 7px;letter-spacing:0.3px}.doc-nav-right{flex:1 1 100%;order:3;gap:10px;flex-wrap:wrap;justify-content:flex-start}.doc-nav-link{font-size:10px;flex:0 0 auto;white-space:nowrap}.xm33-sep{display:none}.xm33-block{display:block}.xm33-dot{display:inline}}
+.nav-live{font-size:10px;font-family:var(--mono);padding:4px 9px;border:1px solid rgba(45,212,160,0.16);border-radius:999px;color:var(--text-secondary);display:inline-flex;align-items:center;gap:5px;letter-spacing:0.45px}
+.nav-live-dot{width:5px;height:5px;border-radius:50%;background:var(--improving);opacity:0.8}
+@media(max-width:640px){.doc-nav{height:auto;min-height:56px;padding:10px 0}.doc-nav-inner{padding:0 16px;flex-wrap:wrap;gap:8px;row-gap:10px}.doc-nav-left{flex:0 0 auto;order:1}.doc-nav-left .nav-live{font-size:9px;padding:3px 7px;letter-spacing:0.3px}.doc-nav-right{flex:1 1 100%;order:3;gap:10px;flex-wrap:wrap;justify-content:flex-start}.doc-nav-link{font-size:10px;flex:0 0 auto;white-space:nowrap}.xm33-sep{display:none}.xm33-block{display:block}.xm33-dot{display:inline}}
 footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text-secondary);font-size:12px;opacity:0.6;text-align:center}.xm33-dot{display:none}
 </style></head><body>
 <nav class="doc-nav">
   <div class="doc-nav-inner">
     <div class="doc-nav-left">
-      <a href="/" class="doc-nav-brand"><svg class="doc-logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="20" r="3" fill="currentColor"/><circle cx="20" cy="70" r="3" fill="currentColor"/><circle cx="80" cy="70" r="3" fill="currentColor"/><circle cx="50" cy="50" r="4" fill="currentColor"/></svg>ORACLE</a>
+      <a href="/" class="doc-nav-brand"><svg class="doc-logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="38" stroke="currentColor" stroke-width="1.8" opacity="0.9"/><circle cx="50" cy="19" r="3.4" fill="currentColor"/><circle cx="19" cy="73" r="3.4" fill="currentColor"/><circle cx="81" cy="73" r="3.4" fill="currentColor"/><line x1="50" y1="22.5" x2="50" y2="46.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><line x1="22.5" y1="70" x2="46.5" y2="53.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><line x1="77.5" y1="70" x2="53.5" y2="53.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><circle cx="50" cy="50" r="4.8" fill="currentColor"/></svg>ORACLE</a>
+      <span class="nav-live"><span class="nav-live-dot"></span>LIVE</span>
     </div>
     <div class="doc-nav-right">
       <a href="/methodology" class="doc-nav-link">Methodology</a>
@@ -50,7 +52,6 @@ footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);color
       <a href="/sources" class="doc-nav-link">Sources</a>
       <a href="/community" class="doc-nav-link">Community</a>
     </div>
-    <span class="nav-live"><span class="nav-live-dot"></span>ORACLE LIVE</span>
   </div>
 </nav>
 <main>
