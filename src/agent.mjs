@@ -2931,9 +2931,9 @@ function generatePrometheusMetrics(fleetData) {
         }
         return { id:r.id, host:r.host, port:r.port, operator:r.operator, stage:stage, block:r.probe_block, behind:behind, error:r.probe_error, submitted_at:r.submitted_at, reason:info.reason, next_step:info.next_step, history:history };
       });
-      var stageColors = { submitted:"#98a2b3", unreachable:"#EF4444", reachable:"#98a2b3", syncing:"#d97706", near_head:"#22c55e", ready:"#2dd4a0", approved:"#2dd4a0", duplicate:"#d97706" };
-      var stageBg = { submitted:"rgba(152,162,179,0.08)", unreachable:"rgba(239,68,68,0.08)", reachable:"rgba(152,162,179,0.08)", syncing:"rgba(217,119,6,0.08)", near_head:"rgba(34,197,94,0.08)", ready:"rgba(45,212,160,0.08)", approved:"rgba(45,212,160,0.06)", duplicate:"rgba(217,119,6,0.08)" };
-      var h = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>DNO — Community Nodes</title><meta name="viewport" content="width=device-width,initial-scale=1">';
+      var stageColors = { submitted:"#98a2b3", unreachable:"#EF4444", reachable:"#98a2b3", syncing:"#d97706", near_head:"#2dd4a0", ready:"#2dd4a0", approved:"#2dd4a0", duplicate:"#d97706" };
+      var stageBg = { submitted:"rgba(152,162,179,0.08)", unreachable:"rgba(239,68,68,0.08)", reachable:"rgba(152,162,179,0.08)", syncing:"rgba(217,119,6,0.08)", near_head:"rgba(45,212,160,0.08)", ready:"rgba(45,212,160,0.08)", approved:"rgba(45,212,160,0.06)", duplicate:"rgba(217,119,6,0.08)" };
+      var h = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>DNO — Community Nodes</title><link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'18\' r=\'4\' fill=\'%232B36D9\'/%3E%3Ccircle cx=\'18\' cy=\'72\' r=\'4\' fill=\'%232B36D9\'/%3E%3Ccircle cx=\'82\' cy=\'72\' r=\'4\' fill=\'%232B36D9\'/%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'5.5\' fill=\'%232B36D9\'/%3E%3C/svg%3E"><meta name="viewport" content="width=device-width,initial-scale=1">';
       h += '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Code+Pro:wght@400;500;600&display=swap" rel="stylesheet">';
       h += '<style>';
       h += ':root{--bg:#0a0a0a;--surface:#101010;--border:#1a1a1a;--text-primary:#f5f5f5;--text-secondary:#98a2b3;--improving:#2dd4a0;--mono:"Source Code Pro",monospace;--sans:"Inter",system-ui,sans-serif}';
@@ -2956,23 +2956,23 @@ function generatePrometheusMetrics(fleetData) {
       h += '.detail b{color:var(--text-primary);font-weight:500}';
       h += '.toggle{cursor:pointer;color:var(--text-secondary);font-size:11px;text-decoration:underline}';
       h += '.toggle:hover{color:var(--text-primary)}';
-      h += 'a{color:#c9d1d9;text-decoration:none}a:hover{text-decoration:underline}';
+      h += 'a{color:#c9d1d9;text-decoration:none;border-bottom:1px solid rgba(255,255,255,0.15)}a:hover{border-bottom-color:var(--improving)}';
       h += '.doc-nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);background:rgba(16,16,16,0.92);border-bottom:1px solid var(--border);height:52px;display:flex;align-items:center}';
       h += '.doc-nav-inner{max-width:980px;width:100%;margin:0 auto;padding:0 28px;display:flex;align-items:center;gap:12px}';
       h += '.doc-nav-left{order:1}';
       h += '.doc-nav-right{order:2;margin-left:auto}';
-      h += '.doc-nav-inner > .nav-live{order:3}';
+      
       h += '.doc-nav-left,.doc-nav-right{display:flex;align-items:center;gap:18px}';
       h += '.doc-nav-brand{color:var(--brand,#2B36D9);text-decoration:none;font-family:var(--mono);font-size:13px;letter-spacing:2.6px;font-weight:700;display:inline-flex;align-items:center;gap:8px;text-transform:uppercase}';
       h += '.doc-nav-brand:hover{text-decoration:none;opacity:0.9}';
-      h += '.doc-logo{width:22px;height:22px;color:var(--text-primary)}';
+      h += '.doc-logo{width:30px;height:30px;color:var(--text-primary)}';
       h += '.doc-nav-link{color:var(--text-secondary);text-decoration:none;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.7px;text-transform:uppercase;transition:color 0.2s}';
       h += '.doc-nav-link:hover{color:var(--text-primary);text-decoration:none}';
       h += '.doc-nav-link[aria-current="page"]{opacity:0.5}';
       h += '.doc-nav-link[aria-current="page"]:hover{opacity:0.8;text-decoration:none}';
-      h += '.nav-live{font-size:10px;font-family:var(--mono);padding:4px 9px;border:1px solid rgba(34,197,94,0.16);border-radius:999px;color:var(--text-secondary);display:inline-flex;align-items:center;gap:5px;letter-spacing:0.45px}';
-      h += '.nav-live-dot{width:5px;height:5px;border-radius:50%;background:#22c55e;opacity:0.8}';
-      h += '@media(max-width:640px){.doc-nav{height:auto;min-height:56px;padding:10px 0}.doc-nav-inner{padding:0 16px;flex-wrap:wrap;gap:8px;row-gap:10px}.doc-nav-left{flex:0 0 auto;order:1}.doc-nav-inner > .nav-live{flex:0 0 auto;order:2;margin-left:auto;font-size:9px;padding:3px 7px;letter-spacing:0.3px}.doc-nav-right{flex:1 1 100%;order:3;gap:10px;flex-wrap:wrap;justify-content:flex-start}.doc-nav-link{font-size:10px;flex:0 0 auto;white-space:nowrap}.xm33-sep{display:none}.xm33-block{display:block}.xm33-dot{display:inline}}';
+      h += '.nav-live{font-size:10px;font-family:var(--mono);padding:4px 9px;border:1px solid rgba(45,212,160,0.16);border-radius:999px;color:var(--text-secondary);display:inline-flex;align-items:center;gap:5px;letter-spacing:0.45px}';
+      h += '.nav-live-dot{width:5px;height:5px;border-radius:50%;background:var(--improving);opacity:0.8}';
+      h += '@media(max-width:640px){.doc-nav{height:auto;min-height:56px;padding:10px 0}.doc-nav-inner{padding:0 16px;flex-wrap:wrap;gap:8px;row-gap:10px}.doc-nav-left{flex:0 0 auto;order:1}.doc-nav-left .nav-live{font-size:9px;padding:3px 7px;letter-spacing:0.3px}.doc-nav-right{flex:1 1 100%;order:3;gap:10px;flex-wrap:wrap;justify-content:flex-start}.doc-nav-link{font-size:10px;flex:0 0 auto;white-space:nowrap}.xm33-sep{display:none}.xm33-block{display:block}.xm33-dot{display:inline}}';
       h += '.oracle-hero-submit{font-size:10px;font-family:var(--mono);padding:3px 9px;border:1px solid rgba(255,255,255,0.15);border-radius:999px;color:rgba(255,255,255,0.7);text-decoration:none;letter-spacing:0.04em;transition:all 0.2s}';
       h += '.oracle-hero-submit:hover{color:var(--improving);border-color:rgba(45,212,160,0.3)}';
       h += 'footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text-secondary);font-size:11px;opacity:0.5;text-align:center}.xm33-dot{display:none}';
@@ -2981,14 +2981,15 @@ function generatePrometheusMetrics(fleetData) {
       h += '</style></head><body>';
       // Nav
       h += '<nav class="doc-nav"><div class="doc-nav-inner"><div class="doc-nav-left">';
-      h += '<a href="/" class="doc-nav-brand"><svg class="doc-logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="20" r="3" fill="currentColor"/><circle cx="20" cy="70" r="3" fill="currentColor"/><circle cx="80" cy="70" r="3" fill="currentColor"/><circle cx="50" cy="50" r="4" fill="currentColor"/></svg>ORACLE</a>';
+      h += '<a href="/" class="doc-nav-brand"><svg class="doc-logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="38" stroke="currentColor" stroke-width="1.8" opacity="0.9"/><circle cx="50" cy="19" r="3.4" fill="currentColor"/><circle cx="19" cy="73" r="3.4" fill="currentColor"/><circle cx="81" cy="73" r="3.4" fill="currentColor"/><line x1="50" y1="22.5" x2="50" y2="46.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><line x1="22.5" y1="70" x2="46.5" y2="53.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><line x1="77.5" y1="70" x2="53.5" y2="53.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><circle cx="50" cy="50" r="4.8" fill="currentColor"/></svg>ORACLE</a>';
+      h += '<span class="nav-live"><span class="nav-live-dot"></span>LIVE</span>';
       h += '</div><div class="doc-nav-right">';
       h += '<a href="/methodology" class="doc-nav-link">Methodology</a>';
       h += '<a href="/agent" class="doc-nav-link">Agent</a>';
       h += '<a href="/sources" class="doc-nav-link">Sources</a>';
       h += '<a href="/community" class="doc-nav-link" aria-current="page">Community</a>';
       h += '</div>';
-      h += '<span class="nav-live"><span class="nav-live-dot"></span>ORACLE LIVE</span>';
+      
       h += '</div></nav>';
       h += '<main>';
       h += '<div class="noncanonical-banner"><strong>Reference surface.</strong>Community node submissions, discovered validators, and fleet diagnostics shown on this page are not canonical network truth until approved. Inclusion does not imply endorsement.</div>';
@@ -3034,9 +3035,7 @@ function generatePrometheusMetrics(fleetData) {
         h += '<div class="sum-card"><div class="sum-val" style="color:' + (fxOnlineN===fxTotalN?"#2dd4a0":"#d97706") + '">' + fxOnlineN + '</div><div class="sum-label">Reachable</div></div>';
         h += '<div class="sum-card"><div class="sum-val" style="color:' + (fxAtHeadN>0?"#2dd4a0":"#98a2b3") + '">' + fxAtHeadN + '</div><div class="sum-label">At Head</div></div>';
         h += '<div class="sum-card"><div class="sum-val">' + (fxNetHead?fxNetHead.toLocaleString():"\u2014") + '</div><div class="sum-label">Network Head</div></div>';
-        if (fxDiscovered.length > 0) {
-          h += '<div class="sum-card"><div class="sum-val" style="color:#a78bfa">' + fxDiscovered.length + '</div><div class="sum-label">Discovered</div></div>';
-        }
+
         h += '</div>';
 
         // Helper: truncate identity (0x8f3a…ba05)
@@ -3147,7 +3146,7 @@ function generatePrometheusMetrics(fleetData) {
       h += '<p class="sub">Community validator nodes during onboarding and approval.</p>';
       // Summary
       h += '<div class="summary">';
-      var sumItems = [["Submitted",rows.length,"#f5f5f5"],["Unreachable",counts.unreachable||0,"#EF4444"],["Syncing",counts.syncing||0,"#d97706"],["Near Head",counts.near_head||0,"#22c55e"],["Ready",counts.ready||0,"#2dd4a0"],["Approved",counts.approved||0,"#2dd4a0"]];
+      var sumItems = [["Submitted",rows.length,"#f5f5f5"],["Unreachable",counts.unreachable||0,"#EF4444"],["Syncing",counts.syncing||0,"#d97706"],["Near Head",counts.near_head||0,"#2dd4a0"],["Ready",counts.ready||0,"#2dd4a0"],["Approved",counts.approved||0,"#2dd4a0"]];
       for (var si=0; si<sumItems.length; si++) {
         h += '<div class="sum-card"><div class="sum-val" style="color:'+sumItems[si][2]+'">'+sumItems[si][1]+'</div><div class="sum-label">'+sumItems[si][0]+'</div></div>';
       }

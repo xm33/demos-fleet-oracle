@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Demos Network Oracle</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='18' r='4' fill='%232B36D9'/%3E%3Ccircle cx='18' cy='72' r='4' fill='%232B36D9'/%3E%3Ccircle cx='82' cy='72' r='4' fill='%232B36D9'/%3E%3Ccircle cx='50' cy='50' r='5.5' fill='%232B36D9'/%3E%3C/svg%3E">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -31,7 +32,7 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
 .navbar-left { display:flex; align-items:center; gap:28px; }
 .navbar-right { display:flex; align-items:center; gap:12px; }
 .navbar-brand { font-family:var(--mono); font-weight:700; font-size:13px; letter-spacing:2.6px; color:var(--brand); display:inline-flex; align-items:center; gap:8px; text-decoration:none; }
-.oracle-logo { width:22px; height:22px; color:var(--text-primary); }
+.oracle-logo { width:36px; height:36px; color:var(--text-primary); }
 .nav-links { display:flex; align-items:center; gap:18px; }
 .nav-links a { font-size:11px; font-weight:500; color:var(--text-secondary); text-decoration:none; letter-spacing:0.7px; text-transform:uppercase; transition:color 0.2s; }
 .nav-links a:hover { color:var(--text-primary); }
@@ -47,7 +48,7 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
 .hero { padding:48px 0 36px; border-bottom:1px solid var(--border); }
 .oracle-kicker-row { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
 .oracle-kicker { font-size:12px; color:var(--text-secondary); opacity:0.62; letter-spacing:0.01em; font-family:var(--sans); }
-.oracle-hero-live { font-size:10px; font-family:var(--mono); padding:4px 9px; border:1px solid rgba(34,197,94,0.16); border-radius:999px; color:var(--text-secondary); display:inline-flex; align-items:center; gap:5px; letter-spacing:0.45px; }
+.oracle-hero-live { font-size:10px; font-family:var(--mono); padding:4px 9px; border:1px solid rgba(45,212,160,0.16); border-radius:999px; color:var(--text-secondary); display:inline-flex; align-items:center; gap:5px; letter-spacing:0.45px; }
 .hero-dot { width:5px; height:5px; border-radius:50%; background:var(--improving); opacity:0.8; }
 .oracle-hero-submit { font-size:10px; font-family:var(--mono); padding:3px 9px; border:1px solid rgba(255,255,255,0.15); border-radius:999px; color:rgba(255,255,255,0.7); text-decoration:none; letter-spacing:0.04em; transition:all 0.2s; }
 .oracle-hero-submit:hover { color:var(--improving); border-color:rgba(45,212,160,0.3); }
@@ -116,6 +117,8 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
 .api-endpoints { display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
 .api-link { font-family:var(--mono); font-size:13px; color:var(--text-primary); text-decoration:none; padding:7px 12px; border:1px solid var(--border); border-radius:6px; transition:border-color 0.2s; }
 .api-link:hover { border-color:#444; }
+.api-toggle { font-family:var(--mono); font-size:12px; color:var(--text-secondary); background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:6px 14px; cursor:pointer; transition:all 0.2s; }
+.api-toggle:hover { border-color:#444; color:var(--text-primary); }
 .api-example { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; font-family:var(--mono); font-size:12px; line-height:1.65; color:var(--text-secondary); overflow-x:auto; white-space:pre; }
 
 /* FOOTER */
@@ -128,7 +131,7 @@ body { font-family:var(--sans); background:var(--bg); color:var(--text-secondary
 .oracle-ecosystem a { color:inherit; text-decoration:none; }
 .oracle-ecosystem a:hover { opacity:1; text-decoration:underline; }
 
-.live-badge { display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:10px; font-weight:500; color:var(--improving); letter-spacing:0.5px; padding:4px 10px; background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.15); border-radius:6px; }
+.live-badge { display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:10px; font-weight:500; color:var(--improving); letter-spacing:0.5px; padding:4px 10px; background:rgba(45,212,160,0.08); border:1px solid rgba(45,212,160,0.15); border-radius:6px; }
 .live-dot { width:5px; height:5px; border-radius:50%; background:var(--improving); animation:livepulse 3s ease-in-out infinite; }
 @keyframes livepulse { 0%,100%{opacity:0.9} 50%{opacity:0.5} }
 .demos-btn { display:inline-flex; align-items:center; gap:8px; background:#111827; border:1px solid #2a3040; border-radius:8px; padding:10px 20px; font-family:var(--sans); font-size:13px; font-weight:600; color:var(--text-primary); letter-spacing:1.2px; text-decoration:none; transition:all 0.2s; }
@@ -185,7 +188,8 @@ body { position:relative; }
 <nav class="navbar">
   <div class="navbar-inner">
   <div class="navbar-left">
-    <a href="/" class="navbar-brand"><svg class="oracle-logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="20" r="3" fill="currentColor"/><circle cx="20" cy="70" r="3" fill="currentColor"/><circle cx="80" cy="70" r="3" fill="currentColor"/><circle cx="50" cy="50" r="4" fill="currentColor"/></svg>ORACLE</a>
+    <a href="/" class="navbar-brand"><svg class="oracle-logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="38" stroke="currentColor" stroke-width="1.8" opacity="0.9"/><circle cx="50" cy="19" r="3.4" fill="currentColor"/><circle cx="19" cy="73" r="3.4" fill="currentColor"/><circle cx="81" cy="73" r="3.4" fill="currentColor"/><line x1="50" y1="22.5" x2="50" y2="46.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><line x1="22.5" y1="70" x2="46.5" y2="53.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><line x1="77.5" y1="70" x2="53.5" y2="53.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><circle cx="50" cy="50" r="4.8" fill="currentColor"/></svg>ORACLE</a>
+    <span class="oracle-hero-live nav-live"><span class="hero-dot"></span>LIVE</span>
   </div>
   <div class="nav-links">
     <a href="/methodology">Methodology</a>
@@ -194,7 +198,6 @@ body { position:relative; }
     <a href="/community">Community</a>
   </div>
   <div class="navbar-right">
-    <span class="oracle-hero-live nav-live"><span class="hero-dot"></span>ORACLE LIVE</span>
     <a href="https://demos.sh" target="_blank" rel="noopener noreferrer" class="demos-brand-btn">
       <span class="dbtn-prefix">powered by</span>
       <svg class="dbtn-logo" viewBox="0 0 227 267" xmlns="http://www.w3.org/2000/svg"><path d="M80 1.9C107-3.3 131.7 3.5 137.9 5.4L146 8.1 78.4 206.7l-8-2.7c-2.2-.9-26-9.2-45.4-29.8C5.7 153.5-9.2 120.6 6.7 70.2 23.3 24.3 53 7.1 80 1.9zm32.8 15.7C93.5 14 49.6 17.8 28.2 69.8c-5.3 12.9-4.8 24.4-.7 33.6 4 9.2 11.6 16.1 20.4 19.9 8.8 3.8 18.8 4.4 27.7 1 8.9-3.4 16.7-10.9 21-23.2l24.1-71.2c1.9-5.6-2-10.8-7.4-12.1l-.5-.1zM156.7 64.1c2 .7 25.9 9 45.2 29.7 19.3 20.6 34.3 53.7 18.5 104 -16.6 46-47.8 62.7-75.6 65.7-27.9 5-52.4-1.8-55.7-2.9l-8.1-2.7L148.7 61.4zm22.5 80.6c-8.8-3.8-18.8-4.4-27.7-1-8.9 3.4-16.7 10.9-21 23.2l-24.1 71.2c-1.9 5.6 2 10.8 7.4 12.1l.5.1c19.2 3.6 63.1-.2 84.6-52.2 5.3-12.9 4.8-24.4.7-33.6-4-9.2-11.6-16.1-20.4-19.9z" fill="#fff" stroke="none"/></svg>
@@ -267,7 +270,8 @@ body { position:relative; }
       <a href="/health" class="api-link">/health</a>
       <a href="/incidents" class="api-link">/incidents</a>
     </div>
-    <div id="api-example" class="api-example loading">Loading...</div>
+    <div style="margin-top:12px"><button class="api-toggle" onclick="var el=document.getElementById('api-example');if(el.style.display==='none'){el.style.display='block';this.textContent='Hide response \u25B4';}else{el.style.display='none';this.textContent='GET /organism \u25BE';}">GET /organism ▾</button></div>
+    <div id="api-example" class="api-example loading" style="display:none;margin-top:10px">Loading...</div>
   </section>
 
   <section class="section">
@@ -307,24 +311,8 @@ function signalColor(v) {
   };
   return m[(v||'').toLowerCase()] || 'var(--text-primary)';
 }
-function cardColor(v) {
-  var abnormal = {
-    degraded:'var(--degraded)',unstable:'var(--unstable)',
-    elevated:'var(--degraded)',high:'var(--unstable)',
-    uncertain:'var(--degraded)',insufficient:'var(--degraded)',
-    improving:'var(--improving)',worsening:'var(--unstable)',
-    moderate:'var(--degraded)',weak:'var(--unstable)',
-    unknown:'var(--unknown)'
-  };
-  return abnormal[(v||'').toLowerCase()] || 'var(--text-primary)';
-}
-function pillBg(s) {
-  var v=(s||'').toLowerCase();
-  if(v==='stable') return '#0a2a22';
-  if(v==='degraded') return '#2a0800';
-  if(v==='unstable') return '#3b0e0e';
-  return '#1f1f1f';
-}
+
+
 function statusColor(v) {
   var s=(v||'').toLowerCase();
   if(s==='stable') return 'var(--stable)';
@@ -343,7 +331,7 @@ async function fetchData() {
     hs.style.color=statusColor(org.status);
     hs.classList.remove('loading');
     var lb=document.querySelector('.oracle-hero-live');
-    if(lb){lb.innerHTML='<span class="hero-dot"></span>ORACLE LIVE';lb.style.borderColor='rgba(34,197,94,0.2)';}
+    if(lb){lb.innerHTML='<span class="hero-dot"></span>LIVE';lb.style.borderColor='rgba(45,212,160,0.2)';}
 
     document.getElementById('hero-summary').textContent=org.status_reason||org.summary||'';
     document.getElementById('hero-staleness').textContent='Updated '+(org.staleness_seconds!=null?org.staleness_seconds+'s ago':'\u2014');
@@ -474,12 +462,12 @@ async function fetchData() {
     }else{incList.innerHTML='';}
 
     // API
-    document.getElementById('api-example').textContent='GET /organism\n\n'+JSON.stringify(org,null,2);
+    var apiEl=document.getElementById('api-example');apiEl.textContent='GET /organism\n\n'+JSON.stringify(org,null,2);apiEl.classList.remove('loading');
   }catch(err){
     document.getElementById('hero-status').textContent='OFFLINE';
     document.getElementById('hero-status').style.color='var(--unknown)';
     var lb=document.querySelector('.oracle-hero-live');
-    if(lb){lb.innerHTML='<span class="hero-dot" style="background:var(--unknown)"></span>ORACLE OFFLINE';lb.style.borderColor='rgba(107,114,128,0.2)';}
+    if(lb){lb.innerHTML='<span class="hero-dot" style="background:var(--unknown)"></span>OFFLINE';lb.style.borderColor='rgba(107,114,128,0.2)';}
   }
 }
 fetchData();
