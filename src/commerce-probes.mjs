@@ -157,6 +157,7 @@ const PROBE_CONFIG = {
     url: 'https://api.scorer.gitcoin.co/registry/v2/score',
     method: 'GET',
     schedule_ms: 10 * 60 * 1000,
+    accept_4xx: true,
     validate: (body) => true,
     validate_desc: 'endpoint responded with key',
   },
