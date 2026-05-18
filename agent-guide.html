@@ -130,7 +130,166 @@ if state['data_quality'] == 'insufficient':
 <h2>Other Endpoints</h2>
 <p><code>/health</code> — full diagnostic with agreement details, public nodes, signals, reference data.</p>
 <p><code>/incidents</code> — incident log. Default scope: public. Use <code>?scope=all</code> for fleet.</p>
+<p><code>/commerce/observations</code> — commerce infrastructure reachability (Layer 2, independent from network truth).</p>
 <p><code>/methodology</code> — how the Oracle makes assessments.</p>
+<p><code>/commerce/methodology</code> — how commerce observation works.</p>
+
+<h2>Error Handling</h2>
+<p>The Oracle is designed to always return valid JSON with all fields present. However, your agent should handle network and edge-case failures gracefully.</p>
+
+<p><b>HTTP errors</b> — The Oracle may return 502/503 during restarts (typically &lt;30 seconds). Retry with exponential backoff.</p>
+
+<p><b>Stale data</b> — If <code>staleness_seconds</code> exceeds 120, the Oracle may be restarting or experiencing issues. The data is still valid but may not reflect the current moment. Your agent should flag this.</p>
+
+<p><b>Insufficient data quality</b> — When <code>data_quality</code> is <span class="val">insufficient</span>, the Oracle cannot see enough public nodes to form a credible assessment. All other fields are still present but should be treated as low-confidence. Status will be <span class="val">unknown</span> and risk will be <span class="val">elevated</span>.</p>
+
+<p><b>Timeouts</b> — Set a reasonable timeout (5–10 seconds). If the Oracle doesn't respond, your agent should fall back to its last known state or a safe default, not crash.</p>
+
+<div class="warn"><b>Never assume the Oracle is always available.</b> Design your agent to degrade gracefully when the Oracle is unreachable or returning stale data.</div>
+
+<h2>Edge Cases</h2>
+<p>These state combinations are real and your agent should handle them explicitly:</p>
+
+<p><b><code>status: stable</code> + <code>risk: elevated</code></b><br>
+The network is working, but resilience is reduced. Fewer nodes than ideal are reachable. The chain functions, but a single additional failure could cause degradation. Your agent should continue operating but with heightened caution.</p>
+
+<p><b><code>status: unknown</code> + <code>data_quality: insufficient</code></b><br>
+The Oracle cannot see enough public nodes to assess the network. This is not "the network is down" — it is "the Oracle cannot tell." Your agent should not assume the worst. It should wait and retry, or fall back to the last known good state.</p>
+
+<p><b><code>status: stable</code> + <code>confidence: uncertain</code></b><br>
+The Oracle has visibility but the signals are contradictory. Nodes may report different block heights or mixed health. The assessment says "stable" but with reduced certainty. Your agent should consume this data but flag it for human review.</p>
+
+<p><b><code>agreement: unknown</code></b><br>
+Fewer than 2 public nodes are reachable, so consensus cannot be measured. This often accompanies <code>data_quality: insufficient</code>. It does not mean validators disagree — it means the Oracle cannot observe enough to tell.</p>
+
+<p><b><code>trend: unknown</code></b><br>
+Not enough recent history to compute a trend. Common after Oracle restarts or data gaps. Trend resets to <span class="val">unknown</span> until enough consecutive observations accumulate. This is normal, not an error.</p>
+
+<p><b><code>staleness_seconds</code> &gt; 60</b><br>
+The Oracle's last observation is more than a minute old. Possible causes: Oracle restarting, high load, network issues between the Oracle and its data sources. The data is still the best available — it's just not fresh. Your agent should note this and poll again shortly.</p>
+
+<h2>Production Python Example</h2>
+<pre>import requests
+import time
+import logging
+
+ORACLE_URL = "https://demos-oracle.com/organism"
+MAX_STALENESS = 120  # seconds
+POLL_INTERVAL = 20   # seconds
+MAX_RETRIES = 3
+
+logger = logging.getLogger("oracle_consumer")
+
+def fetch_oracle_state():
+    # Fetch and validate Oracle state with error handling
+    for attempt in range(MAX_RETRIES):
+        try:
+            r = requests.get(ORACLE_URL, timeout=10)
+            r.raise_for_status()
+            state = r.json()
+
+            # Validate required fields exist
+            required = ["status", "risk", "confidence",
+                        "data_quality", "staleness_seconds"]
+            for field in required:
+                if field not in state:
+                    logger.warning(f"Missing field: {field}")
+                    return None
+
+            return state
+
+        except requests.exceptions.Timeout:
+            logger.warning(f"Oracle timeout (attempt {attempt + 1})")
+            time.sleep(2 ** attempt)
+        except requests.exceptions.HTTPError as e:
+            logger.warning(f"Oracle HTTP {e.response.status_code}")
+            if e.response.status_code in (502, 503):
+                time.sleep(5)  # Oracle restarting
+            else:
+                return None
+        except Exception as e:
+            logger.error(f"Oracle error: {e}")
+            return None
+
+    return None  # All retries exhausted
+
+def assess_reliability(state):
+    # Determine if the Oracle data is reliable enough to act on
+    if state is None:
+        return {"reliable": False, "reason": "Oracle unreachable"}
+
+    if state["data_quality"] == "insufficient":
+        return {"reliable": False,
+                "reason": "Oracle has limited visibility"}
+
+    if state["staleness_seconds"] > MAX_STALENESS:
+        return {"reliable": False,
+                "reason": f"Data is {state['staleness_seconds']}s old"}
+
+    if state["confidence"] == "uncertain":
+        return {"reliable": True,  # usable but flagged
+                "reason": "Signals conflict — use with caution",
+                "flagged": True}
+
+    return {"reliable": True, "reason": None}
+
+# Usage
+state = fetch_oracle_state()
+check = assess_reliability(state)
+if check["reliable"]:
+    # Safe to use state["status"], state["risk"], etc.
+    pass
+else:
+    logger.info(f"Oracle data unreliable: {check['reason']}")
+    # Fall back to last known state or safe default</pre>
+
+<h2>Combining Endpoints</h2>
+<p>For richer context, combine multiple Oracle endpoints:</p>
+<pre># Minimal: just the state
+GET /organism
+
+# Detailed: state + diagnostic data
+GET /organism  →  status, risk, confidence
+GET /health    →  agreement details, node counts, signals
+GET /incidents →  specific active problems
+
+# Commerce: attestation authority reachability
+GET /commerce/observations  →  authority states (Layer 2, separate from network truth)</pre>
+
+<p><b>Important:</b> <code>/commerce/observations</code> is Layer 2 data. It reports whether attestation authority endpoints are reachable. It does not influence and is not influenced by the network assessment in <code>/organism</code>. These are independent observation layers.</p>
+
+<h2>Commerce API (Layer 2)</h2>
+<p>The Oracle also monitors attestation authority endpoints used by the Demos agent commerce protocol. This is a separate observation layer.</p>
+<pre>GET /commerce/observations</pre>
+<pre>{
+  "layer": "commerce_intelligence",
+  "network_context": "testnet",
+  "commerce_observability_state": "healthy",
+  "authorities_observed": 10,
+  "authorities_healthy": 10,
+  "authorities": [
+    {
+      "authority_id": "gleif",
+      "name": "GLEIF",
+      "category": "public_api",
+      "reachability": "healthy",
+      "freshness": "fresh",
+      "observed_at": "2026-05-18T..."
+    }
+  ]
+}</pre>
+<p><code>commerce_observability_state</code> — overall: <span class="val">healthy</span> <span class="val">degraded</span> <span class="val">partial</span> <span class="val">unavailable</span> <span class="val">unknown</span></p>
+<p><code>reachability</code> — per authority: <span class="val">healthy</span> <span class="val">degraded</span> <span class="val">unavailable</span> <span class="val">unknown</span></p>
+<div class="note"><b>Layer separation:</b> Commerce data is Layer 2. It never affects <code>/organism</code> status, risk, trend, agreement, confidence, or data quality. These are architecturally independent observation layers.</div>
+<p>Full commerce methodology: <a href="/commerce/methodology">/commerce/methodology</a></p>
+
+<h2>HTTP Status Codes</h2>
+<p><code>200</code> — Success. Valid JSON response.</p>
+<p><code>301</code> — Redirect (e.g., <code>/home</code> → <code>/</code>).</p>
+<p><code>401</code> — Unauthorized. Admin endpoints require <code>?token=</code> parameter.</p>
+<p><code>404</code> — Endpoint not found.</p>
+<p><code>502/503</code> — Oracle restarting. Retry after 5–10 seconds.</p>
+<div class="note">All public endpoints return JSON with <code>Content-Type: application/json</code> and <code>Access-Control-Allow-Origin: *</code> (CORS enabled).</div>
 
 <h2>Design Principle</h2>
 <div class="note">This API describes state. It does not suggest actions.<br>The Oracle publishes network truth. Your agent interprets it.</div>
