@@ -3034,6 +3034,7 @@ function generatePrometheusMetrics(fleetData) {
       h += 'footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text-secondary);font-size:11px;opacity:0.5;text-align:center}.xm33-dot{display:none}';
       h += '.table-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}';
       h += '@media(max-width:720px){main{padding:20px 16px 64px}.summary{gap:8px}.sum-card{flex:1;min-width:88px;padding:10px 10px}.sum-label{font-size:9px;letter-spacing:0.2px}table{font-size:11px}td,th{padding:6px 8px}}';
+      h += '.watermark{position:fixed;bottom:48px;right:40px;width:110px;height:110px;opacity:0.07;pointer-events:none;z-index:0}.watermark svg{width:100%;height:100%;display:block}@media(max-width:640px){.watermark{width:76px;height:76px;right:18px;bottom:40px;opacity:0.06}}';
       h += '</style></head><body>';
       // Nav
       h += '<nav class="doc-nav"><div class="doc-nav-inner"><div class="doc-nav-left">';
@@ -3297,6 +3298,7 @@ function generatePrometheusMetrics(fleetData) {
       h += '</div>';
 
       h += '<footer>Demos Network Oracle &middot; API v1.0 &middot; <a href="/methodology">Methodology</a> &middot; <a href="https://github.com/xm33/demos-network-oracle">GitHub</a> <span class="xm33-sep"> &middot; </span><span class="xm33-block"><span class="xm33-dot">&middot; </span>Built by XM33<span class="xm33-dot"> &middot;</span></span></footer>';
+      h += '<div class="watermark"><svg width="110" height="110" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="38" stroke="currentColor" stroke-width="1.8" opacity="0.9"/><circle cx="50" cy="19" r="3.4" fill="currentColor"/><circle cx="19" cy="73" r="3.4" fill="currentColor"/><circle cx="81" cy="73" r="3.4" fill="currentColor"/><line x1="50" y1="22.5" x2="50" y2="46.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><line x1="22.5" y1="70" x2="46.5" y2="53.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><line x1="77.5" y1="70" x2="53.5" y2="53.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><circle cx="50" cy="50" r="4.8" fill="currentColor"/></svg></div>';
       h += '</main></body></html>';
       res.writeHead(200, {"Content-Type":"text/html; charset=utf-8"});
       res.end(h);

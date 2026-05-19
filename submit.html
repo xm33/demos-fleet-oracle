@@ -39,7 +39,7 @@ button:disabled{opacity:0.4;cursor:not-allowed}
 .nav-live-dot{width:5px;height:5px;border-radius:50%;background:var(--improving);opacity:0.8}
 @media(max-width:640px){.doc-nav{height:auto;min-height:56px;padding:10px 0}.doc-nav-inner{padding:0 16px;flex-wrap:wrap;gap:8px;row-gap:10px}.doc-nav-left{flex:0 0 auto;order:1}.doc-nav-left .nav-live{font-size:9px;padding:3px 7px;letter-spacing:0.3px}.doc-nav-right{flex:1 1 100%;order:3;gap:10px;flex-wrap:wrap;justify-content:flex-start}.doc-nav-link{font-size:10px;flex:0 0 auto;white-space:nowrap}.xm33-sep{display:none}.xm33-block{display:block}.xm33-dot{display:inline}}
 footer{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text-secondary);font-size:12px;opacity:0.6;text-align:center}.xm33-dot{display:none}
-</style></head><body>
+.watermark{position:fixed;bottom:48px;right:40px;width:110px;height:110px;opacity:0.07;pointer-events:none;z-index:0}.watermark svg{width:100%;height:100%;display:block}@media(max-width:640px){.watermark{width:76px;height:76px;right:18px;bottom:40px;opacity:0.06}}</style></head><body>
 <nav class="doc-nav">
   <div class="doc-nav-inner">
     <div class="doc-nav-left">
@@ -163,4 +163,4 @@ async function submitNode(){
 </script>
 <footer>Demos Network Oracle · API v1.0 · <a href="/methodology">Methodology</a> · <a href="https://github.com/xm33/demos-network-oracle">GitHub</a> <span class="xm33-sep"> · </span><span class="xm33-block"><span class="xm33-dot">· </span>Built by XM33<span class="xm33-dot"> ·</span></span></footer>
 </main>
-</body></html>
+<div class="watermark"><svg width="110" height="110" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="38" stroke="currentColor" stroke-width="1.8" opacity="0.9"/><circle cx="50" cy="19" r="3.4" fill="currentColor"/><circle cx="19" cy="73" r="3.4" fill="currentColor"/><circle cx="81" cy="73" r="3.4" fill="currentColor"/><line x1="50" y1="22.5" x2="50" y2="46.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><line x1="22.5" y1="70" x2="46.5" y2="53.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><line x1="77.5" y1="70" x2="53.5" y2="53.5" stroke="currentColor" stroke-width="0.9" opacity="0.6"/><circle cx="50" cy="50" r="4.8" fill="currentColor"/></svg></div></body></html>
