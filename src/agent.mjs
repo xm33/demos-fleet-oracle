@@ -1951,7 +1951,7 @@ async function probeFixnetNodes() {
           operator: node.operator
         });
         // v7.2: crawl anchor's peerlist for new fixnet validators
-        if (node.source_type === "anchor") {
+        if (node.source_type === "anchor" || node.source_type === "fleet") {
           try {
             var added = discoverFixnetValidators(data);
             if (added > 0) log("  [fixnet-discovery] +" + added + " new peer(s) from anchor");
