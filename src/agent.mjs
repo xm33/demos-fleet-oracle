@@ -3277,7 +3277,7 @@ function generatePrometheusMetrics(fleetData) {
       if (discoveredList.length === 0) {
         h += '<p style="color:var(--text-secondary);font-size:12px;font-family:var(--mono);opacity:0.6;padding:12px 0">No discovered validators at this time.</p>';
       } else {
-        h += '<div class="table-scroll"><table style="opacity:0.8"><thead><tr><th>Address</th><th>Status</th><th>Block</th><th>Sync</th></tr></thead><tbody>';
+        h += '<div class="table-scroll"><table style="opacity:0.8"><thead><tr><th>Identity</th><th>Status</th><th>Block</th><th>Sync</th></tr></thead><tbody>';
         for (var dvi = 0; dvi < discoveredList.length; dvi++) {
           var dv = discoveredList[dvi];
           var dvOnline = dv.online === true;
@@ -3287,7 +3287,7 @@ function generatePrometheusMetrics(fleetData) {
           var dvSyncPct = dv.sync_pct != null ? dv.sync_pct : 0;
           var dvSyncColor = dvSyncPct >= 99.9 ? "#2dd4a0" : dvSyncPct >= 50 ? "#d97706" : "#EF4444";
           h += '<tr>';
-          h += '<td>' + esc(dv.display || "\u2014") + '</td>';
+          h += '<td style="font-family:var(--mono);font-size:11px">' + esc(dv.identity ? dv.identity.substring(0,16) + "..." : "\u2014") + '</td>';
           h += '<td><span class="pill" style="color:' + dvStatusColor + ';background:' + dvStatusBg + ';border-color:' + dvStatusColor + '44">' + dvStatusText + '</span></td>';
           h += '<td>' + (dv.block ? dv.block.toLocaleString() : "\u2014") + '</td>';
           h += '<td style="color:' + dvSyncColor + '">' + dvSyncPct + '%</td>';
